@@ -169,3 +169,5 @@ h2 { font-size: 16px; margin: 0 0 12px; }
 .pager { display: flex; align-items: center; gap: 16px; justify-content: center; margin-top: 16px; }
 .pager-info { color: var(--muted); font-size: 13px; }
 .inline { display: inline; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font-size: 13px; }

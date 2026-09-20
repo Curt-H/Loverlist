@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}数据{% endblock %}
+{% block content %}
+<h1>数据管理</h1>
+
+<div class="card">
+  <h2>导出 CSV</h2>
+  <p class="muted">UTF-8-SIG 编码,Excel 双击打开不乱码。事务所历史在单元格内用「;」分隔,段格式 <code>2018-至今: XX事务所</code>。</p>
+  <div class="btn-row">
+    <a class="btn" href="{{ url_for('loverlist.export_csv', which='persons') }}">⬇ 人物 persons.csv</a>
+    <a class="btn" href="{{ url_for('loverlist.export_csv', which='works') }}">⬇ 作品 works.csv</a>
+    <a class="btn" href="{{ url_for('loverlist.export_csv', which='credits') }}">⬇ 阵容 credits.csv</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>导入 CSV(存在即更新)</h2>
+  <p class="muted">
+    匹配规则:人物按「姓名」、作品按「番号」、阵容按「人物+作品+关系」——命中即更新,未命中则新增,无法配对的行跳过。<br>
+    心动指数与收藏由应用内点击产生,导入时<b>不会覆盖</b>。可只上传其中一部分。
+  </p>
+  <form class="form" method="post" action="{{ url_for('loverlist.import_csv') }}" enctype="multipart/form-data">
+    <label>人物 persons.csv<input type="file" name="persons" accept=".csv"></label>
+    <label>作品 works.csv<input type="file" name="works" accept=".csv"></label>
+    <label>阵容 credits.csv<input type="file" name="credits" accept=".csv"></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">开始导入</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>演示数据</h2>
+  <p class="muted">空库时可灌入 8 位虚构人物与 10 部作品(含阵容与心动值),用于快速体验;已有数据时会被跳过。</p>
+  <form class="inline js-confirm" method="post" data-msg="确定灌入演示数据?(仅空库生效)" action="{{ url_for('loverlist.seed_demo_route') }}">
+    <button class="btn" type="submit">灌入演示数据</button>
+  </form>
+</div>
+{% endblock %}
