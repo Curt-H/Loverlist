@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import heart_btn_for %}
 {% block title %}{{ work.code }}{% endblock %}
 {% block content %}
 <div class="detail-head">
@@ -18,7 +19,12 @@
   <dl class="props">
     <dt>番号</dt><dd class="strong">{{ work.code }}</dd>
     <dt>标题</dt><dd>{{ work.title or '—' }}</dd>
-    <dt>文件名</dt><dd class="mono">{{ work.filename or '—' }}</dd>
+    <dt>文件名</dt>
+    <dd class="mono">{{ work.filename or '—' }}
+      {% if work.filename %}
+      <button type="button" class="btn btn-small js-copy" data-copy="{{ work.filename }}" title="复制到剪贴板">📋 复制</button>
+      {% endif %}
+    </dd>
     <dt>状态</dt><dd>{{ work.status or '—' }}</dd>
     <dt>备注</dt><dd>{{ work.notes or '—' }}</dd>
     <dt>录入时间</dt><dd>{{ work.created_at }}</dd>
@@ -35,7 +41,7 @@
         <td><a href="{{ url_for('loverlist.person_detail', pid=c.person_id) }}">{{ c.person_name }}</a>{% if c.person_kana %} <span class="muted">{{ c.person_kana }}</span>{% endif %}</td>
         <td>{{ c.role }}</td>
         <td>{{ c.character_name or '—' }}</td>
-        <td>💗 {{ c.person_hearts }}</td>
+        <td class="nowrap">{{ heart_btn_for(c.person_id, c.person_hearts) }}</td>
         <td>
           <form class="inline js-confirm" method="post" data-msg="将「{{ c.person_name }}」移出本作品阵容?" action="{{ url_for('loverlist.credit_delete', cid=c.id) }}">
             <input type="hidden" name="work_id" value="{{ work.id }}">

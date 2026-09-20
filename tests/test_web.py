@@ -157,6 +157,64 @@ class WebTests(unittest.TestCase):
         self.client.post(f"/persons/{pid2}/delete")
         self.assertEqual(list(self.avatar_dir.glob(f"{pid2}_*")), [])
 
+    def test_heart_button_scopes_and_copy_button(self):
+        # 心动+1 按钮:仅人物列表/人物详情/作品详情;其他页面纯展示
+        self.client.post("/persons", data={"name": "ひなた"})
+        self.client.post(
+            "/works",
+            data={"code_alpha": "LOV", "code_num": "001", "filename": "abc_001.mp4"},
+        )
+        conn = get_connection(self.db_path)
+        try:
+            pid = conn.execute("SELECT id FROM persons LIMIT 1").fetchone()[0]
+            wid = conn.execute("SELECT id FROM works LIMIT 1").fetchone()[0]
+        finally:
+            conn.close()
+        self.client.post(
+            f"/works/{wid}/credits",
+            data={"person_id": str(pid), "role": "", "character_name": ""},
+        )
+        self.assertIn(b"heart-btn js-heart", self.client.get("/persons").data)
+        self.assertIn(b"heart-btn js-heart", self.client.get(f"/persons/{pid}").data)
+        work_html = self.client.get(f"/works/{wid}").data
+        self.assertIn(b"heart-btn js-heart", work_html)             # 阵容表可+1
+        self.assertIn("复制".encode("utf-8"), work_html)             # 复制按钮
+        self.assertIn("abc_001.mp4".encode("utf-8"), work_html)
+        self.assertNotIn(b"heart-btn js-heart", self.client.get("/").data)        # 仪表盘纯展示
+        self.assertNotIn(b"heart-btn js-heart", self.client.get("/favorites").data)  # 心动向纯展示
+        self.assertIn(b"heart-badge", self.client.get("/").data)
+        # 文件名为空的作品:无复制按钮(JS 源码含"复制"字样,故断言按钮专属属性)
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        conn = get_connection(self.db_path)
+        try:
+            wid2 = conn.execute(
+                "SELECT id FROM works WHERE code = 'LOV-002'"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertNotIn(b"data-copy", self.client.get(f"/works/{wid2}").data)
+
+    def test_works_tag_collapse_markup(self):
+        # 演示库标签少于阈值:不出现折叠按钮(JS 源码含 tag-toggle 字样,断言按钮专属 id 属性)
+        r = self.client.get("/works")
+        self.assertNotIn(b'id="tag-toggle"', r.data)
+        # 灌入 25 个标签的作品 → 出现折叠按钮且容器带 collapsed 类
+        conn = get_connection(self.db_path)
+        try:
+            services.create_work(
+                conn, {"code": "LOV-099", "title": "标签墙"},
+                ",".join(f"标签{i:02d}" for i in range(1, 26)),
+            )
+        finally:
+            conn.close()
+        r = self.client.get("/works")
+        self.assertIn(b'id="tag-toggle"', r.data)
+        self.assertIn(b"tag-cloud collapsed", r.data)
+        self.assertIn("展开全部 25 个标签".encode("utf-8"), r.data)
+        # 带 tag 筛选时不折叠
+        r = self.client.get("/works", query_string={"tag": "标签01"})
+        self.assertNotIn(b"tag-cloud collapsed", r.data)
+
     def test_favorites_page(self):
         r = self.client.get("/favorites")
         self.assertEqual(r.status_code, 200)

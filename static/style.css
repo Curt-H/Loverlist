@@ -195,3 +195,10 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 .crop-box { position: absolute; border: 2px solid var(--pink); box-shadow: 0 0 0 9999px rgba(43, 35, 49, .45); cursor: move; }
 .crop-tools { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
 .crop-tools input[type=range] { flex: 1; }
+
+/* ---- 心动纯展示徽章(非可点页面用) ---- */
+.heart-badge { display: inline-flex; align-items: center; gap: 2px; padding: 4px 12px; border-radius: 999px; background: var(--pink-light); color: var(--pink-dark); font-size: 13px; font-weight: 600; }
+
+/* ---- 标签云折叠(阈值20:全部+20个之后隐藏) ---- */
+.tag-cloud.collapsed .chip:nth-child(n+22) { display: none; }
+.tag-toggle { margin: -4px 0 12px; }

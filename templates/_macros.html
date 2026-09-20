@@ -1,5 +1,11 @@
-{% macro heart_btn(p) -%}
-<button type="button" class="heart-btn js-heart" data-url="{{ url_for('loverlist.person_heart', pid=p.id) }}" title="心动 +1">💗 <span class="heart-count">{{ p.heart_count }}</span></button>
+{% macro heart_btn_for(pid, count) -%}
+<button type="button" class="heart-btn js-heart" data-url="{{ url_for('loverlist.person_heart', pid=pid) }}" title="心动 +1">💗 <span class="heart-count">{{ count }}</span></button>
+{%- endmacro %}
+
+{% macro heart_btn(p) -%}{{ heart_btn_for(p.id, p.heart_count) }}{%- endmacro %}
+
+{% macro heart_display(p) -%}
+<span class="heart-badge" title="心动指数(仅人物列表/详情与作品详情可+1)">💗 {{ p.heart_count }}</span>
 {%- endmacro %}
 
 {% macro fav_btn(p) -%}

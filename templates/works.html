@@ -7,13 +7,17 @@
   <a class="btn btn-primary" href="{{ url_for('loverlist.work_new') }}">+ 新建作品</a>
 </div>
 
+{% set TAG_COLLAPSE = 20 %}
 {% if tags %}
-<div class="tag-cloud">
+<div class="tag-cloud {{ 'collapsed' if (tags|length > TAG_COLLAPSE and not tag) }}" id="tag-cloud">
   <a class="chip {{ 'active' if not tag }}" href="{{ url_for('loverlist.works') }}">全部</a>
   {% for t in tags %}
   <a class="chip {{ 'active' if tag == t.tag }}" href="{{ url_for('loverlist.works', tag=t.tag) }}">{{ t.tag }} <span class="chip-cnt">{{ t.cnt }}</span></a>
   {% endfor %}
 </div>
+{% if tags|length > TAG_COLLAPSE %}
+<button class="btn btn-small btn-ghost tag-toggle" id="tag-toggle" type="button" data-total="{{ tags|length }}">展开全部 {{ tags|length }} 个标签 ▾</button>
+{% endif %}
 {% endif %}
 
 <form class="filter-bar" method="get">

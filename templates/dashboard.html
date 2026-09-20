@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import heart_btn, avatar %}
+{% from "_macros.html" import heart_display, avatar %}
 {% block title %}仪表盘{% endblock %}
 {% block content %}
 <h1>仪表盘</h1>
@@ -20,7 +20,7 @@
       {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
       <div class="muted small">当前心动 {{ today.heart_count }} · 每天按心动指数加权换人</div>
     </div>
-    {{ heart_btn(today) }}
+    {{ heart_display(today) }}
   </div>
 </div>
 {% else %}

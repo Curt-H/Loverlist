@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import heart_btn, fav_btn, avatar %}
+{% from "_macros.html" import heart_display, fav_btn, avatar %}
 {% block title %}心动向{% endblock %}
 {% block content %}
 <h1>心动向</h1>
@@ -14,7 +14,7 @@
       {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
       <div class="muted small">当前心动 {{ today.heart_count }} · 每天按心动指数加权换人</div>
     </div>
-    {{ heart_btn(today) }}
+    {{ heart_display(today) }}
   </div>
 </div>
 {% endif %}
@@ -29,7 +29,7 @@
         <tr>
           <td class="muted">{{ loop.index }}</td>
           <td>{{ avatar(p) }} <a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a></td>
-          <td class="nowrap">{{ heart_btn(p) }}</td>
+          <td class="nowrap">{{ heart_display(p) }}</td>
           <td class="nowrap">{{ fav_btn(p) }}</td>
         </tr>
       {% else %}
