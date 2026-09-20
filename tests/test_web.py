@@ -261,6 +261,26 @@ class WebTests(unittest.TestCase):
         self.assertNotIn(b'name="status"', self.client.get("/works/new").data)
         self.assertIn(b"LOV-001", self.client.get("/review").data)
 
+    def test_vr_mark_and_status_cards_on_pages(self):
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001", "is_vr": "1"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        # /works:VR 作品番号旁出现且仅出现一个 ᯅ
+        r = self.client.get("/works")
+        self.assertEqual(r.data.count("ᯅ".encode("utf-8")), 1)
+        # 详情页番号旁也有 ᯅ;编辑表单勾选回显
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works WHERE code = 'LOV-001'").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertIn("ᯅ".encode("utf-8"), self.client.get(f"/works/{wid}").data)
+        self.assertIn(b"checked", self.client.get(f"/works/{wid}/edit").data)
+        self.assertNotIn(b"checked", self.client.get("/works/new").data.replace(b'name="is_vr" value="1"', b""))
+        # 仪表盘状态统计卡
+        r = self.client.get("/")
+        for word in ("待审", "已收录", "不予收录"):
+            self.assertIn(word.encode("utf-8"), r.data)
+
     def test_favorites_page(self):
         r = self.client.get("/favorites")
         self.assertEqual(r.status_code, 200)

@@ -36,7 +36,7 @@
   <tbody>
   {% for w in rows %}
     <tr>
-      <td><a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
+      <td><a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}{% if w.is_vr %} <span class="vr-mark" title="VR作品">ᯅ</span>{% endif %}</a></td>
       <td>{{ w.title or '—' }}</td>
       <td class="muted">{{ w.tags or '—' }}</td>
       <td>{{ status_badge(w.status) }}</td>

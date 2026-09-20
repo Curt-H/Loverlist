@@ -20,6 +20,9 @@
       <input name="tags" value="{{ tags_raw }}" placeholder="恋爱,青春,治愈">
     </label>
     <label>文件名 <span class="hint">(预留字段)</span><input name="filename" value="{{ work.filename if work else '' }}"></label>
+    <label class="check-line">
+      <input type="checkbox" name="is_vr" value="1" {{ 'checked' if work is not none and work.is_vr }}> VR作品
+    </label>
   </div>
   <label>备注<textarea name="notes" rows="2">{{ work.notes if work else '' }}</textarea></label>
 

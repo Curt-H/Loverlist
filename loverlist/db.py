@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS works (
     title      TEXT    NOT NULL DEFAULT '',    -- 标题
     filename   TEXT    NOT NULL DEFAULT '',    -- 文件名(预留字段)
     status     TEXT    NOT NULL DEFAULT '评审中', -- 状态:评审中/已收录/不予收录
+    is_vr      INTEGER NOT NULL DEFAULT 0,       -- VR作品(ᯅ 标记)
     notes      TEXT    NOT NULL DEFAULT '',    -- 备注
     created_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
@@ -91,6 +92,9 @@ def init_db(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(persons)")}
     if "avatar" not in cols:
         conn.execute("ALTER TABLE persons ADD COLUMN avatar TEXT NOT NULL DEFAULT ''")
+    wcols = {r[1] for r in conn.execute("PRAGMA table_info(works)")}
+    if "is_vr" not in wcols:
+        conn.execute("ALTER TABLE works ADD COLUMN is_vr INTEGER NOT NULL DEFAULT 0")
     # 历史数据迁移:老库空状态视为已收录(新作品由服务层默认写入「评审中」,不受影响)
     conn.execute("UPDATE works SET status = '已收录' WHERE status = ''")
     conn.commit()

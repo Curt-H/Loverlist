@@ -130,5 +130,28 @@ class RoundTripTests(unittest.TestCase):
         self.assertEqual(status_of("LOV-001"), "已收录")
 
 
+    def test_vr_column_roundtrip(self):
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(csvio.WORK_HEADERS)
+        w.writerow(["LOV-020", "VR作品", "悬疑", "", "评审中", "是", ""])
+        w.writerow(["LOV-021", "普通作品", "", "", "已收录", "", ""])
+        buf.seek(0)
+        csvio.import_csv(self.conn, "works", buf)
+
+        def vr_of(code):
+            return self.conn.execute(
+                "SELECT is_vr FROM works WHERE code = ?", (code,)
+            ).fetchone()["is_vr"]
+
+        self.assertEqual(vr_of("LOV-020"), 1)
+        self.assertEqual(vr_of("LOV-021"), 0)
+        # 导出包含 VR 列与「是」标记
+        text = csvio.export_csv_string(self.conn, "works")
+        first_line = text.splitlines()[0]
+        self.assertIn("VR", first_line)
+        self.assertIn("是", text)
+
+
 if __name__ == "__main__":
     unittest.main()

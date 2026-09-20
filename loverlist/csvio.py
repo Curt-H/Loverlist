@@ -18,7 +18,7 @@ AGENCY_RE = re.compile(r"^\s*(\d{4})\s*-\s*(\d{4}|至今|现在|今)\s*[:：]\s*
 
 PERSON_HEADERS = ["姓名", "别名", "假名", "性别", "出生年月", "身高", "胸围", "腰围",
                   "臀围", "罩杯", "心动指数", "收藏", "备注", "事务所历史"]
-WORK_HEADERS = ["番号", "标题", "风格TAG", "文件名", "状态", "备注"]
+WORK_HEADERS = ["番号", "标题", "风格TAG", "文件名", "状态", "VR", "备注"]
 CREDIT_HEADERS = ["人物姓名", "作品番号", "关系类型", "角色名"]
 
 
@@ -91,7 +91,7 @@ def export_csv_string(conn, which) -> str:
         for w in conn.execute("SELECT * FROM works ORDER BY id").fetchall():
             writer.writerow([
                 w["code"], w["title"], ",".join(services.work_tags(conn, w["id"])),
-                w["filename"], w["status"], w["notes"],
+                w["filename"], w["status"], "是" if w["is_vr"] else "", w["notes"],
             ])
     elif which == "credits":
         writer.writerow(CREDIT_HEADERS)
@@ -159,6 +159,7 @@ def import_works(conn, text_stream):
             "title": _row_val(row, "标题"),
             "filename": _row_val(row, "文件名"),
             "status": status,
+            "is_vr": services.normalize_bool(_row_val(row, "VR")),
             "notes": _row_val(row, "备注"),
         }
         tags_raw = _row_val(row, "风格TAG")

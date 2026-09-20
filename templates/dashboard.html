@@ -5,9 +5,12 @@
 <h1>仪表盘</h1>
 <div class="stat-grid">
   <div class="stat-card"><div class="stat-num">{{ stats.person_count }}</div><div class="stat-label">人物</div></div>
-  <div class="stat-card"><div class="stat-num">{{ stats.work_count }}</div><div class="stat-label">作品</div></div>
+  <div class="stat-card"><div class="stat-num">{{ stats.work_count }}</div><div class="stat-label">作品(不含不予收录)</div></div>
   <div class="stat-card"><div class="stat-num">{{ stats.tag_count }}</div><div class="stat-label">风格TAG</div></div>
   <div class="stat-card"><div class="stat-num">{{ stats.total_hearts }}</div><div class="stat-label">总心动</div></div>
+  <div class="stat-card stat-card-warn"><div class="stat-num">{{ stats.review_count }}</div><div class="stat-label">待审</div></div>
+  <div class="stat-card stat-card-ok"><div class="stat-num">{{ stats.accepted_count }}</div><div class="stat-label">已收录</div></div>
+  <div class="stat-card stat-card-reject"><div class="stat-num">{{ stats.rejected_count }}</div><div class="stat-label">不予收录</div></div>
 </div>
 
 {% if today %}

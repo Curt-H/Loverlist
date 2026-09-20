@@ -63,6 +63,13 @@ def normalize_status(value, default=STATUS_DEFAULT) -> str:
     return v if v in WORK_STATUSES else default
 
 
+def normalize_bool(value) -> int:
+    """布尔归一:是/1/true/yes/on 视为真,其余为 0。"""
+    if isinstance(value, bool):
+        return 1 if value else 0
+    return 1 if str(value or "").strip().lower() in ("1", "是", "true", "yes", "on", "v") else 0
+
+
 def _person_order(sort, dir_):
     """人物列表排序:白名单字段 + 方向;身高/年龄/罩杯的空值恒排最后。"""
     dir_ = "DESC" if str(dir_ or "").upper() == "DESC" else "ASC"
@@ -327,12 +334,13 @@ def create_work(conn, data, tags_raw=""):
     if not code:
         raise ValueError("番号必填")
     cur = conn.execute(
-        "INSERT INTO works (code, title, filename, status, notes) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO works (code, title, filename, status, is_vr, notes) VALUES (?, ?, ?, ?, ?, ?)",
         (
             code,
             (data.get("title") or "").strip(),
             (data.get("filename") or "").strip(),
             normalize_status(data.get("status")),
+            normalize_bool(data.get("is_vr")),
             (data.get("notes") or "").strip(),
         ),
     )
@@ -347,11 +355,12 @@ def update_work(conn, work_id, data, tags_raw=""):
     if not code:
         raise ValueError("番号必填")
     conn.execute(
-        "UPDATE works SET code = ?, title = ?, filename = ?, notes = ? WHERE id = ?",
+        "UPDATE works SET code = ?, title = ?, filename = ?, is_vr = ?, notes = ? WHERE id = ?",
         (
             code,
             (data.get("title") or "").strip(),
             (data.get("filename") or "").strip(),
+            normalize_bool(data.get("is_vr")),
             (data.get("notes") or "").strip(),
             work_id,
         ),
@@ -452,6 +461,9 @@ def dashboard_stats(conn):
             " JOIN works w ON w.id = wt.work_id WHERE w.status != '不予收录'"
         ),
         "total_hearts": one("SELECT COALESCE(SUM(heart_count), 0) FROM persons"),
+        "review_count": one("SELECT COUNT(*) FROM works WHERE status = '评审中'"),
+        "accepted_count": one("SELECT COUNT(*) FROM works WHERE status = '已收录'"),
+        "rejected_count": one("SELECT COUNT(*) FROM works WHERE status = '不予收录'"),
     }
 
 

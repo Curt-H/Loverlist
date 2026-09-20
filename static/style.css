@@ -212,3 +212,11 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 .btn-ok:hover { background: var(--ok-bg); border-color: #9fd4b3; }
 .nav-badge { display: inline-block; min-width: 17px; padding: 0 5px; border-radius: 999px; background: var(--pink); color: #fff; font-size: 11px; line-height: 17px; text-align: center; }
 .nav a.active .nav-badge { background: #fff; color: var(--pink); }
+
+/* ---- 状态统计卡 / VR标记 ---- */
+.stat-card-warn .stat-num { color: var(--warn-fg); }
+.stat-card-ok .stat-num { color: var(--ok-fg); }
+.stat-card-reject .stat-num { color: var(--err-fg); }
+.vr-mark { color: var(--pink-dark); font-weight: 700; cursor: help; }
+.form .check-line { display: flex; align-items: center; margin-bottom: 12px; }
+.form .check-line input[type=checkbox] { display: inline-block; width: auto; margin: 0 6px 0 0; }

@@ -119,7 +119,8 @@ class StatsTests(unittest.TestCase):
     def test_empty_stats_and_today(self):
         self.assertEqual(
             services.dashboard_stats(self.conn),
-            {"person_count": 0, "work_count": 0, "tag_count": 0, "total_hearts": 0},
+            {"person_count": 0, "work_count": 0, "tag_count": 0, "total_hearts": 0,
+             "review_count": 0, "accepted_count": 0, "rejected_count": 0},
         )
         self.assertIsNone(services.today_heart(self.conn))
 
@@ -191,6 +192,23 @@ class WorkStatusTests(unittest.TestCase):
         # w1 已收录进入已判定;被退回的 w2 仍在评审队列
         self.assertEqual({w["code"] for w in services.judged_works(self.conn)}, {"LOV-001"})
         self.assertEqual([w["code"] for w in services.review_list(self.conn)], ["LOV-002"])
+
+
+    def test_vr_flag_and_status_cards(self):
+        # VR 布尔归一与表单更新
+        wid = services.create_work(self.conn, {"code": "LOV-001", "is_vr": 1})
+        self.assertEqual(services.get_work(self.conn, wid)["is_vr"], 1)
+        wid2 = services.create_work(self.conn, {"code": "LOV-002"})
+        self.assertEqual(services.get_work(self.conn, wid2)["is_vr"], 0)
+        services.update_work(self.conn, wid2, {"code": "LOV-002", "is_vr": "是"}, "t")
+        self.assertEqual(services.get_work(self.conn, wid2)["is_vr"], 1)
+        # 状态统计三卡数据源
+        services.set_work_status(self.conn, wid, "不予收录")
+        stats = services.dashboard_stats(self.conn)
+        self.assertEqual(
+            (stats["review_count"], stats["accepted_count"], stats["rejected_count"]),
+            (1, 0, 1),
+        )
 
 
 if __name__ == "__main__":

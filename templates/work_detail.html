@@ -17,7 +17,7 @@
 
 <div class="card">
   <dl class="props">
-    <dt>番号</dt><dd class="strong">{{ work.code }}</dd>
+    <dt>番号</dt><dd class="strong">{{ work.code }}{% if work.is_vr %} <span class="vr-mark" title="VR作品">ᯅ</span>{% endif %}</dd>
     <dt>标题</dt><dd>{{ work.title or '—' }}</dd>
     <dt>状态</dt><dd>{{ status_badge(work.status) }} <span class="muted small">(状态在「评审」页更改)</span></dd>
     <dt>文件名</dt>

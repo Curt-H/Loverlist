@@ -74,5 +74,31 @@ class DbTests(unittest.TestCase):
             conn.close()
 
 
+    def test_is_vr_column_migration_for_legacy_db(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        p = Path(tmp.name) / "legacy2.db"
+        old = sqlite3.connect(str(p))
+        old.execute(
+            "CREATE TABLE works (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL UNIQUE,"
+            " title TEXT NOT NULL DEFAULT '', filename TEXT NOT NULL DEFAULT '',"
+            " status TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',"
+            " created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')))"
+        )
+        old.execute("INSERT INTO works (code) VALUES ('LOV-001')")
+        old.commit()
+        old.close()
+        conn = db.get_connection(p)
+        try:
+            db.init_db(conn)
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(works)")}
+            self.assertIn("is_vr", cols)
+            row = conn.execute("SELECT code, status, is_vr FROM works").fetchone()
+            self.assertEqual((row["code"], row["status"], row["is_vr"]),
+                             ("LOV-001", "已收录", 0))
+        finally:
+            conn.close()
+
+
 if __name__ == "__main__":
     unittest.main()
