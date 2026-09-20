@@ -171,3 +171,8 @@ h2 { font-size: 16px; margin: 0 0 12px; }
 .inline { display: inline; }
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font-size: 13px; }
+.code-row { display: flex; gap: 8px; align-items: center; }
+.code-row input { margin-top: 0; }
+.code-row input:first-child { flex: 2; }
+.code-row input:last-child { flex: 1; }
+.code-dash { font-weight: 700; color: var(--muted); }

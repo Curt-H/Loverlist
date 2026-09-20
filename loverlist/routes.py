@@ -60,9 +60,9 @@ def _person_data_from_form():
     }
 
 
-def _work_data_from_form():
+def _work_data_from_form(code):
     return {
-        "code": request.form.get("code", ""),
+        "code": code,
         "title": request.form.get("title", ""),
         "filename": request.form.get("filename", ""),
         "status": request.form.get("status", ""),
@@ -204,19 +204,23 @@ def works():
 
 @bp.get("/works/new")
 def work_new():
-    return render_template("work_form.html", work=None, tags_raw="")
+    return render_template(
+        "work_form.html", work=None, tags_raw="", code_alpha="", code_num="",
+    )
 
 
 def _save_work(wid=None):
     """创建/更新作品:成功返回作品 id,失败返回 None(消息已 flash)。"""
-    data = _work_data_from_form()
-    tags_raw = request.form.get("tags", "")
-    code = services.normalize_code(data["code"])
-    if not code:
-        flash("番号必填", "error")
+    try:
+        code = services.build_code(
+            request.form.get("code_alpha", ""),
+            request.form.get("code_num", ""),
+        )
+    except ValueError as exc:
+        flash(str(exc), "error")
         return None
-    if not services.check_code(code):
-        flash(f"番号 {code} 不符合建议格式(如 LOV-123),已按原文保存", "warn")
+    data = _work_data_from_form(code)
+    tags_raw = request.form.get("tags", "")
     try:
         if wid is None:
             new_id = services.create_work(g.db, data, tags_raw)
@@ -257,9 +261,14 @@ def work_edit(wid):
     work = services.get_work(g.db, wid)
     if work is None:
         abort(404)
+    if "-" in work["code"]:
+        code_alpha, code_num = work["code"].split("-", 1)
+    else:  # 兼容历史无横线番号:整体落入英文框
+        code_alpha, code_num = work["code"], ""
     return render_template(
         "work_form.html", work=work,
         tags_raw=", ".join(services.work_tags(g.db, wid)),
+        code_alpha=code_alpha, code_num=code_num,
     )
 
 

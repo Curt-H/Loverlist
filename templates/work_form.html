@@ -8,8 +8,12 @@
 
 <form class="form" method="post" action="{{ url_for('loverlist.work_update', wid=work.id) if work else url_for('loverlist.work_create') }}">
   <div class="grid">
-    <label>番号 * <span class="hint">(建议 英文-3~4位数字,如 LOV-123,不符仅提示不拦截)</span>
-      <input name="code" required placeholder="LOV-123" value="{{ work.code if work else '' }}">
+    <label>番号 * <span class="hint">(英文-数字;数字不足3位自动补零,如 LOV + 7 → LOV-007)</span>
+      <span class="code-row">
+        <input name="code_alpha" required placeholder="LOV" value="{{ code_alpha }}">
+        <span class="code-dash">-</span>
+        <input name="code_num" required placeholder="007" value="{{ code_num }}">
+      </span>
     </label>
     <label>标题<input name="title" value="{{ work.title if work else '' }}"></label>
     <label>风格TAG <span class="hint">(逗号分隔,如:恋爱,青春)</span>

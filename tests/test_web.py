@@ -54,7 +54,7 @@ class WebTests(unittest.TestCase):
     def test_work_create_and_detail(self):
         r = self.client.post(
             "/works",
-            data={"code": "lov-001", "title": "初夏", "tags": "恋爱, 青春"},
+            data={"code_alpha": "lov", "code_num": "1", "title": "初夏", "tags": "恋爱, 青春"},
             follow_redirects=True,
         )
         self.assertEqual(r.status_code, 200)
@@ -62,14 +62,32 @@ class WebTests(unittest.TestCase):
         r = self.client.get("/works", query_string={"q": "初夏"})
         self.assertIn("LOV-001".encode("utf-8"), r.data)
 
+    def test_code_parts_required(self):
+        r = self.client.post("/works", data={"code_alpha": "", "code_num": ""}, follow_redirects=True)
+        self.assertIn("英文部分必填".encode("utf-8"), r.data)
+        r = self.client.post("/works", data={"code_alpha": "LOV", "code_num": "abc"}, follow_redirects=True)
+        self.assertIn("数字部分必填".encode("utf-8"), r.data)
+
+    def test_work_edit_prefills_split_code(self):
+        self.client.post("/works", data={"code_alpha": "lov", "code_num": "7"})
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works LIMIT 1").fetchone()[0]
+        finally:
+            conn.close()
+        r = self.client.get(f"/works/{wid}/edit")
+        html = r.data.decode("utf-8")
+        self.assertIn('name="code_alpha" required placeholder="LOV" value="LOV"', html)
+        self.assertIn('name="code_num" required placeholder="007" value="007"', html)
+
     def test_duplicate_code_rejected(self):
-        self.client.post("/works", data={"code": "LOV-001"})
-        r = self.client.post("/works", data={"code": "LOV-001"}, follow_redirects=True)
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
+        r = self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"}, follow_redirects=True)
         self.assertIn("已存在".encode("utf-8"), r.data)
 
     def test_credit_add_via_web(self):
         self.client.post("/persons", data={"name": "ひなた"})
-        self.client.post("/works", data={"code": "LOV-001"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
         pid = self._first_person_id()
         conn = get_connection(self.db_path)
         try:

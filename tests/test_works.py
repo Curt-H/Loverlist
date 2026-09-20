@@ -6,6 +6,30 @@ from loverlist import services
 from tests.helpers import make_conn, person_data
 
 
+class BuildCodeTests(unittest.TestCase):
+    def test_pads_uppercases_and_keeps_long_nums(self):
+        self.assertEqual(services.build_code("lov", "7"), "LOV-007")
+        self.assertEqual(services.build_code(" LOV ", "12"), "LOV-012")
+        self.assertEqual(services.build_code("ABC", "123"), "ABC-123")
+        self.assertEqual(services.build_code("ABC", "1234"), "ABC-1234")
+        self.assertEqual(services.build_code("ABC", "12345"), "ABC-12345")
+
+    def test_strips_non_digits(self):
+        self.assertEqual(services.build_code("AB", "12a3"), "AB-123")
+
+    def test_alpha_required(self):
+        with self.assertRaises(ValueError):
+            services.build_code("", "123")
+        with self.assertRaises(ValueError):
+            services.build_code("   ", "123")
+
+    def test_num_required(self):
+        with self.assertRaises(ValueError):
+            services.build_code("LOV", "")
+        with self.assertRaises(ValueError):
+            services.build_code("LOV", "abc")
+
+
 class WorkTests(unittest.TestCase):
     def setUp(self):
         make_conn(self)

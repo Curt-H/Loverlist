@@ -8,7 +8,6 @@ from datetime import date
 # ---------------------------------------------------------------------------
 # 常量与软校验
 # ---------------------------------------------------------------------------
-CODE_RE = re.compile(r"^[A-Z0-9]+-\d{3,4}$")   # 番号建议格式,如 LOV-123
 BIRTH_RE = re.compile(r"^\d{4}-\d{2}$")        # 出生年月 YYYY-MM
 
 ROLE_CHOICES = ["出演", "主演", "配角", "客串", "导演", "编剧", "配音", "制作"]
@@ -27,11 +26,6 @@ _CURRENT_AGENCY_SQL = (
     " ORDER BY (ah.end_year IS NULL) DESC, ah.start_year DESC, ah.id DESC"
     " LIMIT 1) AS current_agency"
 )
-
-
-def check_code(code) -> bool:
-    """番号是否符合建议格式(仅用于 UI 提示,不拦截保存)。"""
-    return bool(CODE_RE.match(code or ""))
 
 
 def check_birth_ym(value) -> bool:
@@ -206,6 +200,17 @@ def all_persons_brief(conn):
 # ---------------------------------------------------------------------------
 # 作品与标签
 # ---------------------------------------------------------------------------
+def build_code(alpha, num) -> str:
+    """番号两段拼接:英文(去空格转大写,必填)+ 数字(仅保留数字字符,必填,不足3位补零)。"""
+    alpha = (alpha or "").strip().upper()
+    digits = "".join(ch for ch in (num or "") if ch.isdigit())
+    if not alpha:
+        raise ValueError("英文部分必填")
+    if not digits:
+        raise ValueError("数字部分必填")
+    return f"{alpha}-{digits.zfill(3)}"
+
+
 def normalize_code(code) -> str:
     return (code or "").strip().upper()
 
