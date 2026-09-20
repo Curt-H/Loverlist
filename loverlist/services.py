@@ -262,9 +262,9 @@ def favorite_persons(conn):
 
 
 def all_persons_brief(conn):
-    """用于作品页的人物下拉。"""
+    """用于作品页的人物搜索候选(含别名,前端实时过滤)。"""
     return conn.execute(
-        "SELECT id, name, kana FROM persons ORDER BY name ASC, id ASC"
+        "SELECT id, name, kana, alias FROM persons ORDER BY name ASC, id ASC"
     ).fetchall()
 
 

@@ -252,3 +252,13 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 /* ---- 文件名(自动派生,超长省略) ---- */
 .filename-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .filename-text { display: inline-block; max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+
+/* ---- 人物实时搜索候选 ---- */
+.suggest-wrap { position: relative; }
+.suggest-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  max-height: 240px; overflow-y: auto; box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+}
+.suggest-item { padding: 7px 12px; cursor: pointer; font-size: 14px; color: var(--ink); }
+.suggest-item:hover { background: var(--pink-light); }

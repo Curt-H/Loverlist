@@ -58,11 +58,10 @@
   </table>
 
   <form class="form row-form" method="post" action="{{ url_for('loverlist.credit_add', wid=work.id) }}">
-    <label>人物
-      <select name="person_id" required>
-        <option value="">— 选择人物 —</option>
-        {% for p in persons %}<option value="{{ p.id }}">{{ p.name }}{% if p.kana %}({{ p.kana }}){% endif %}</option>{% endfor %}
-      </select>
+    <label class="suggest-wrap">人物(输入搜索)
+      <input type="text" id="person-search" placeholder="输入 姓名 / 假名 / 别名…" autocomplete="off">
+      <input type="hidden" name="person_id" id="credit-person-id">
+      <div id="person-suggestions" class="suggest-list" hidden></div>
     </label>
     <label>关系
       <input name="role" list="role-list" placeholder="出演">
@@ -72,4 +71,5 @@
     <button class="btn btn-primary" type="submit">添加到阵容</button>
   </form>
 </div>
+<script type="application/json" id="persons-data">{{ persons | tojson }}</script>
 {% endblock %}

@@ -211,6 +211,51 @@ if (themeBtn) {
     applyIcon();
   });
 }
+
+// ---- 作品阵容:人物实时搜索(前端过滤,最多5条候选) ----
+const personSearch = document.getElementById('person-search');
+if (personSearch) {
+  const list = document.getElementById('person-suggestions');
+  const hidden = document.getElementById('credit-person-id');
+  const persons = JSON.parse(document.getElementById('persons-data').textContent);
+
+  const render = (items) => {
+    list.innerHTML = '';
+    if (!items.length) { list.hidden = true; return; }
+    items.forEach((p) => {
+      const div = document.createElement('div');
+      div.className = 'suggest-item';
+      div.textContent = p.name + (p.kana ? '(' + p.kana + ')' : '') + (p.alias ? ' [' + p.alias + ']' : '');
+      div.addEventListener('click', () => {
+        hidden.value = p.id;
+        personSearch.value = p.name;
+        list.hidden = true;
+      });
+      list.appendChild(div);
+    });
+    list.hidden = false;
+  };
+  personSearch.addEventListener('input', () => {
+    hidden.value = '';
+    const q = personSearch.value.trim().toLowerCase();
+    if (!q) { list.hidden = true; return; }
+    render(persons.filter((p) =>
+      p.name.toLowerCase().includes(q) ||
+      (p.kana || '').toLowerCase().includes(q) ||
+      (p.alias || '').toLowerCase().includes(q)
+    ).slice(0, 5));
+  });
+  personSearch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const first = list.querySelector('.suggest-item');
+      if (first) first.click();
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!personSearch.contains(e.target) && !list.contains(e.target)) list.hidden = true;
+  });
+}
 </script>
 </body>
 </html>

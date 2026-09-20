@@ -102,6 +102,12 @@ class WebTests(unittest.TestCase):
             wid = conn.execute("SELECT id FROM works LIMIT 1").fetchone()[0]
         finally:
             conn.close()
+        # 详情页改为实时搜索:含搜索框与内嵌人物JSON,不再有旧下拉
+        page = self.client.get(f"/works/{wid}")
+        self.assertIn(b'id="person-search"', page.data)
+        self.assertIn(b'id="persons-data"', page.data)
+        self.assertIn("ひなた".encode("utf-8"), page.data)   # 人物JSON已内嵌
+        self.assertNotIn(b'<select name="person_id"', page.data)
         r = self.client.post(
             f"/works/{wid}/credits",
             data={"person_id": str(pid), "role": "", "character_name": "小夏"},

@@ -257,11 +257,15 @@ def work_detail(wid):
     work = services.get_work(g.db, wid)
     if work is None:
         abort(404)
+    persons = [
+        {"id": p["id"], "name": p["name"], "kana": p["kana"], "alias": p["alias"]}
+        for p in services.all_persons_brief(g.db)
+    ]
     return render_template(
         "work_detail.html", work=work,
         tags=services.work_tags(g.db, wid),
         credits=services.work_credits(g.db, wid),
-        persons=services.all_persons_brief(g.db),
+        persons=persons,
         role_choices=services.ROLE_CHOICES,
     )
 
