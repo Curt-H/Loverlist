@@ -4,6 +4,12 @@
 <h1>数据管理</h1>
 
 <div class="card">
+  <h2>数据位置</h2>
+  <p class="muted">把数据库与头像放到其他文件夹(如共享网盘)。找不到数据时会自动进入设置引导。</p>
+  <a class="btn" href="{{ url_for('loverlist.setup_page') }}">数据位置设置</a>
+</div>
+
+<div class="card">
   <h2>导出 CSV</h2>
   <p class="muted">UTF-8-SIG 编码,Excel 双击打开不乱码。事务所历史在单元格内用「;」分隔,段格式 <code>2018-至今: XX事务所</code>。</p>
   <div class="btn-row">

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}数据位置{% endblock %}
+{% block content %}
+<h1>数据位置设置</h1>
+
+{% if setup_error %}
+<div class="flash flash-error">{{ setup_error }}</div>
+<div class="card">
+  <p>应用无法访问当前配置的数据文件夹。请确认网络盘已挂载、路径正确,然后在下方指定新的数据文件夹。</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>当前配置</h2>
+  <p>数据文件夹:<code>{{ current_dir or '(未配置,使用本地 data\)' }}</code></p>
+  <p class="muted small">配置保存在项目根的 <code>data.ini</code>;文件夹内包含 <code>loverlist.db</code> 与 <code>avatars\</code>(头像)。</p>
+  <p class="muted small">⚠ 网络盘提示:SQLite 不建议多台电脑同时读写同一数据库。请单机使用,或定期在「数据」页导出 CSV 备份。</p>
+</div>
+
+<div class="card">
+  <h2>指定数据文件夹</h2>
+  <form class="form" method="post">
+    <label>数据文件夹路径 <span class="hint">(支持盘符与 UNC 网络路径,如 \\NAS\share\LoverlistData)</span>
+      <input name="data_dir" required value="{{ current_dir }}" placeholder="\\NAS\share\LoverlistData">
+    </label>
+    {% if copy_available %}
+    <label class="check-line">
+      <input type="checkbox" name="copy_local" value="1">
+      把当前本地数据(数据库与头像)复制到新位置(不删除源文件)
+    </label>
+    {% endif %}
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">保存并使用</button>
+      <a class="btn btn-ghost" href="{{ url_for('loverlist.dashboard') }}">返回</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

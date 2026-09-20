@@ -3,4 +3,4 @@ from flask import Blueprint
 
 bp = Blueprint("loverlist", __name__)
 
-from . import data, home, persons, review, works  # noqa: E402,F401 (导入即注册视图)
+from . import data, home, persons, review, setup, works  # noqa: E402,F401 (导入即注册视图)
