@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_macros.html" import heart_btn, fav_btn %}
+{% block title %}心动向{% endblock %}
+{% block content %}
+<h1>心动向</h1>
+
+{% if today %}
+<div class="card today-card">
+  <h2>💗 今日心动</h2>
+  <div class="today-body">
+    <div>
+      <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.id) }}">{{ today.name }}</a>
+      {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
+      <div class="muted small">当前心动 {{ today.heart_count }} · 每天按心动指数加权换人</div>
+    </div>
+    {{ heart_btn(today) }}
+  </div>
+</div>
+{% endif %}
+
+<div class="two-col">
+  <div class="card">
+    <h2>心动榜 Top 20</h2>
+    <table class="table">
+      <thead><tr><th>#</th><th>姓名</th><th>心动</th><th></th></tr></thead>
+      <tbody>
+      {% for p in top %}
+        <tr>
+          <td class="muted">{{ loop.index }}</td>
+          <td><a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a></td>
+          <td class="nowrap">{{ heart_btn(p) }}</td>
+          <td class="nowrap">{{ fav_btn(p) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="empty">暂无数据</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>收藏({{ favs|length }})</h2>
+    {% if favs %}
+    <ul class="rank-list">
+      {% for p in favs %}
+      <li><a href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a><span class="rank-hearts">💗 {{ p.heart_count }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">还没有收藏——在人物列表点「☆ 收藏」标记心头好。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

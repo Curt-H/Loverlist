@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑人物' if person else '新建人物' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ ('编辑人物 · ' + person.name) if person else '新建人物' }}</h1>
+  <a class="btn btn-ghost" href="{{ url_for('loverlist.person_detail', pid=person.id) if person else url_for('loverlist.persons') }}">返回</a>
+</div>
+
+<form class="form" method="post" action="{{ url_for('loverlist.person_update', pid=person.id) if person else url_for('loverlist.person_create') }}">
+  <div class="grid">
+    <label>姓名 *<input name="name" required value="{{ person.name if person else '' }}"></label>
+    <label>别名<input name="alias" value="{{ person.alias if person else '' }}"></label>
+    <label>假名(日文)<input name="kana" value="{{ person.kana if person else '' }}"></label>
+    <label>性别
+      <select name="gender">
+        {% set cur_gender = person.gender if person else '女' %}
+        {% for gv in genders %}<option value="{{ gv }}" {{ 'selected' if cur_gender == gv }}>{{ gv }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>出生年月 <span class="hint">(YYYY-MM)</span><input name="birth_ym" placeholder="1998-04" value="{{ person.birth_ym if person else '' }}"></label>
+    <label>身高(cm)<input name="height" type="number" value="{{ person.height if person is not none and person.height is not none else '' }}"></label>
+    <label>胸围 B<input name="bust" type="number" value="{{ person.bust if person is not none and person.bust is not none else '' }}"></label>
+    <label>腰围 W<input name="waist" type="number" value="{{ person.waist if person is not none and person.waist is not none else '' }}"></label>
+    <label>臀围 H<input name="hip" type="number" value="{{ person.hip if person is not none and person.hip is not none else '' }}"></label>
+    <label>罩杯<input name="cup" placeholder="F" value="{{ person.cup if person else '' }}"></label>
+  </div>
+
+  <label>备注<textarea name="notes" rows="2">{{ person.notes if person else '' }}</textarea></label>
+
+  <fieldset>
+    <legend>事务所历史 <span class="hint">(结束年留空 = 至今)</span></legend>
+    <div id="agency-rows">
+      {% for a in agencies %}
+      <div class="agency-row">
+        <input name="agency_name" placeholder="事务所名" value="{{ a.agency_name }}">
+        <input name="agency_start" type="number" placeholder="起始年" value="{{ a.start_year if a.start_year is not none else '' }}">
+        <input name="agency_end" type="number" placeholder="结束年(空=至今)" value="{{ a.end_year if a.end_year is not none else '' }}">
+        <button type="button" class="btn btn-small btn-danger js-remove-row">移除</button>
+      </div>
+      {% endfor %}
+    </div>
+    <template id="agency-tpl">
+      <div class="agency-row">
+        <input name="agency_name" placeholder="事务所名">
+        <input name="agency_start" type="number" placeholder="起始年">
+        <input name="agency_end" type="number" placeholder="结束年(空=至今)">
+        <button type="button" class="btn btn-small btn-danger js-remove-row">移除</button>
+      </div>
+    </template>
+    <button type="button" class="btn btn-small" id="add-agency">+ 添加一段事务所</button>
+  </fieldset>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">保存</button>
+    <a class="btn btn-ghost" href="{{ url_for('loverlist.person_detail', pid=person.id) if person else url_for('loverlist.persons') }}">取消</a>
+  </div>
+</form>
+{% endblock %}

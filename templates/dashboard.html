@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import heart_btn %}
+{% block title %}仪表盘{% endblock %}
+{% block content %}
+<h1>仪表盘</h1>
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-num">{{ stats.person_count }}</div><div class="stat-label">人物</div></div>
+  <div class="stat-card"><div class="stat-num">{{ stats.work_count }}</div><div class="stat-label">作品</div></div>
+  <div class="stat-card"><div class="stat-num">{{ stats.tag_count }}</div><div class="stat-label">风格TAG</div></div>
+  <div class="stat-card"><div class="stat-num">{{ stats.total_hearts }}</div><div class="stat-label">总心动</div></div>
+</div>
+
+{% if today %}
+<div class="card today-card">
+  <h2>💗 今日心动</h2>
+  <div class="today-body">
+    <div>
+      <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.id) }}">{{ today.name }}</a>
+      {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
+      <div class="muted small">当前心动 {{ today.heart_count }} · 每天按心动指数加权换人</div>
+    </div>
+    {{ heart_btn(today) }}
+  </div>
+</div>
+{% else %}
+<div class="card"><p class="muted">库还是空的——去<a href="{{ url_for('loverlist.person_new') }}"> 新建人物 </a>,先把心动的人收录进来吧。</p></div>
+{% endif %}
+
+<div class="two-col">
+  <div class="card">
+    <h2>心动 Top 5</h2>
+    <ol class="rank-list">
+      {% for p in top %}
+      <li><a href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a><span class="rank-hearts">💗 {{ p.heart_count }}</span></li>
+      {% else %}<li class="muted">暂无数据</li>{% endfor %}
+    </ol>
+  </div>
+  <div class="card">
+    <h2>最新作品</h2>
+    <ul class="rank-list">
+      {% for w in recent_works %}
+      <li><a href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a><span class="muted">{{ w.title }}</span></li>
+      {% else %}<li class="muted">暂无数据</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import heart_btn, fav_btn, paginate, bwh %}
+{% block title %}人物{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>人物</h1>
+  <a class="btn btn-primary" href="{{ url_for('loverlist.person_new') }}">+ 新建人物</a>
+</div>
+
+<form class="filter-bar" method="get">
+  <input type="text" name="q" value="{{ q }}" placeholder="搜索 姓名 / 别名 / 假名">
+  <input type="text" name="agency" value="{{ agency }}" placeholder="按事务所筛选">
+  <select name="gender">
+    <option value="">全部性别</option>
+    {% for gv in genders %}<option value="{{ gv }}" {{ 'selected' if gender == gv }}>{{ gv }}</option>{% endfor %}
+  </select>
+  <select name="sort">
+    <option value="heart" {{ 'selected' if sort == 'heart' }}>按心动指数</option>
+    <option value="name" {{ 'selected' if sort == 'name' }}>按姓名</option>
+    <option value="height" {{ 'selected' if sort == 'height' }}>按身高</option>
+    <option value="birth" {{ 'selected' if sort == 'birth' }}>按出生年月</option>
+  </select>
+  <button class="btn" type="submit">筛选</button>
+  <a class="btn btn-ghost" href="{{ url_for('loverlist.persons') }}">重置</a>
+</form>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>姓名</th><th>别名 / 假名</th><th>出生</th><th>身高</th><th>三围</th>
+      <th>罩杯</th><th>事务所</th><th>心动</th><th></th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in rows %}
+    <tr>
+      <td><a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a>{% if p.is_favorite %} <span class="star">★</span>{% endif %}</td>
+      <td class="muted">{{ p.alias }}{% if p.alias and p.kana %} / {% endif %}{{ p.kana }}</td>
+      <td>{{ p.birth_ym or '—' }}</td>
+      <td>{{ (p.height ~ 'cm') if p.height else '—' }}</td>
+      <td>{{ bwh(p) }}</td>
+      <td>{{ p.cup or '—' }}</td>
+      <td class="muted">{{ p.current_agency or '—' }}</td>
+      <td class="nowrap">{{ heart_btn(p) }}</td>
+      <td class="nowrap">{{ fav_btn(p) }}</td>
+      <td class="nowrap actions">
+        <a class="btn btn-small" href="{{ url_for('loverlist.person_edit', pid=p.id) }}">编辑</a>
+        <form class="inline js-confirm" method="post" data-msg="确定删除人物「{{ p.name }}」?TA 的作品关联将一并移除。" action="{{ url_for('loverlist.person_delete', pid=p.id) }}">
+          <button class="btn btn-small btn-danger" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="10" class="empty">还没有人物,点右上角「+ 新建人物」开始吧。</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{{ paginate(page, pages, total, {'q': q, 'agency': agency, 'gender': gender, 'sort': sort}) }}
+{% endblock %}

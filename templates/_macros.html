@@ -1,0 +1,27 @@
+{% macro heart_btn(p) -%}
+<button type="button" class="heart-btn js-heart" data-url="{{ url_for('loverlist.person_heart', pid=p.id) }}" title="心动 +1">💗 <span class="heart-count">{{ p.heart_count }}</span></button>
+{%- endmacro %}
+
+{% macro fav_btn(p) -%}
+<button type="button" class="fav-btn js-fav {{ 'active' if p.is_favorite else '' }}" data-url="{{ url_for('loverlist.person_favorite', pid=p.id) }}">{{ '★ 收藏中' if p.is_favorite else '☆ 收藏' }}</button>
+{%- endmacro %}
+
+{% macro paginate(page, pages, total, base_args) -%}
+<nav class="pager">
+  {% if pages > 1 %}
+  <a class="{{ 'disabled' if page <= 1 else '' }}" href="{{ url_for(request.endpoint, page=page - 1, **base_args) }}">‹ 上一页</a>
+  <span class="pager-info">第 {{ page }} / {{ pages }} 页 · 共 {{ total }} 条</span>
+  <a class="{{ 'disabled' if page >= pages else '' }}" href="{{ url_for(request.endpoint, page=page + 1, **base_args) }}">下一页 ›</a>
+  {% else %}
+  <span class="pager-info">共 {{ total }} 条</span>
+  {% endif %}
+</nav>
+{%- endmacro %}
+
+{% macro bwh(p) -%}
+{%- if p.bust or p.waist or p.hip -%}
+B{{ p.bust or '–' }}-W{{ p.waist or '–' }}-H{{ p.hip or '–' }}
+{%- else -%}
+—
+{%- endif -%}
+{%- endmacro %}

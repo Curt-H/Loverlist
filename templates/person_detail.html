@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import heart_btn, fav_btn, bwh %}
+{% block title %}{{ person.name }}{% endblock %}
+{% block content %}
+<div class="detail-head">
+  <div>
+    <h1>{{ person.name }}{% if person.is_favorite %} <span class="star">★</span>{% endif %}</h1>
+    <p class="muted">
+      {% if person.alias %}别名:{{ person.alias }}&nbsp;&nbsp;{% endif %}
+      {% if person.kana %}假名:{{ person.kana }}{% endif %}
+    </p>
+  </div>
+  <div class="detail-actions">
+    {{ heart_btn(person) }}
+    {{ fav_btn(person) }}
+    <a class="btn" href="{{ url_for('loverlist.person_edit', pid=person.id) }}">编辑</a>
+    <form class="inline js-confirm" method="post" data-msg="确定删除人物「{{ person.name }}」?" action="{{ url_for('loverlist.person_delete', pid=person.id) }}">
+      <button class="btn btn-danger" type="submit">删除</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <dl class="props">
+    <dt>性别</dt><dd>{{ person.gender or '—' }}</dd>
+    <dt>出生年月</dt><dd>{{ person.birth_ym or '—' }}</dd>
+    <dt>身高</dt><dd>{{ (person.height ~ ' cm') if person.height else '—' }}</dd>
+    <dt>三围</dt><dd>{{ bwh(person) }}</dd>
+    <dt>罩杯</dt><dd>{{ person.cup or '—' }}</dd>
+    <dt>心动指数</dt><dd class="heart-num">{{ person.heart_count }}</dd>
+    <dt>备注</dt><dd>{{ person.notes or '—' }}</dd>
+    <dt>录入时间</dt><dd>{{ person.created_at }}</dd>
+  </dl>
+</div>
+
+<div class="card">
+  <h2>事务所历史</h2>
+  {% if agencies %}
+  <ul class="agency-list">
+    {% for a in agencies %}
+    <li>
+      <span class="agency-years">{{ a.start_year or '?' }}-{{ a.end_year if a.end_year is not none else '至今' }}:</span>
+      {{ a.agency_name }}{% if a.end_year is none %} <span class="chip chip-now">现任</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">暂无记录。</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>相关作品({{ works|length }})</h2>
+  {% if works %}
+  <table class="table">
+    <thead><tr><th>番号</th><th>标题</th><th>关系</th><th>角色名</th></tr></thead>
+    <tbody>
+    {% for w in works %}
+      <tr>
+        <td><a href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
+        <td>{{ w.title or '—' }}</td>
+        <td>{{ w.role }}</td>
+        <td>{{ w.character_name or '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">暂无关联作品,可到作品详情页把 TA 加进阵容。</p>{% endif %}
+</div>
+{% endblock %}

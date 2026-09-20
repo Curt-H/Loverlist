@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_macros.html" import paginate %}
+{% block title %}作品{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>作品</h1>
+  <a class="btn btn-primary" href="{{ url_for('loverlist.work_new') }}">+ 新建作品</a>
+</div>
+
+{% if tags %}
+<div class="tag-cloud">
+  <a class="chip {{ 'active' if not tag }}" href="{{ url_for('loverlist.works') }}">全部</a>
+  {% for t in tags %}
+  <a class="chip {{ 'active' if tag == t.tag }}" href="{{ url_for('loverlist.works', tag=t.tag) }}">{{ t.tag }} <span class="chip-cnt">{{ t.cnt }}</span></a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<form class="filter-bar" method="get">
+  <input type="text" name="q" value="{{ q }}" placeholder="搜索 番号 / 标题">
+  {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+  <button class="btn" type="submit">搜索</button>
+  <a class="btn btn-ghost" href="{{ url_for('loverlist.works') }}">重置</a>
+</form>
+
+<table class="table">
+  <thead><tr><th>番号</th><th>标题</th><th>风格TAG</th><th>状态</th><th>阵容</th><th>操作</th></tr></thead>
+  <tbody>
+  {% for w in rows %}
+    <tr>
+      <td><a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
+      <td>{{ w.title or '—' }}</td>
+      <td class="muted">{{ w.tags or '—' }}</td>
+      <td>{{ w.status or '—' }}</td>
+      <td>{{ w.cast_size }}</td>
+      <td class="nowrap actions">
+        <a class="btn btn-small" href="{{ url_for('loverlist.work_edit', wid=w.id) }}">编辑</a>
+        <form class="inline js-confirm" method="post" data-msg="确定删除作品「{{ w.code }}」?" action="{{ url_for('loverlist.work_delete', wid=w.id) }}">
+          <button class="btn btn-small btn-danger" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="empty">还没有作品,点右上角「+ 新建作品」开始吧。</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{{ paginate(page, pages, total, {'q': q, 'tag': tag}) }}
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ work.code }}{% endblock %}
+{% block content %}
+<div class="detail-head">
+  <div>
+    <h1>{{ work.code }}{% if work.title %} <span class="title-suffix">{{ work.title }}</span>{% endif %}</h1>
+    {% if tags %}<div class="chips">{% for t in tags %}<span class="chip">{{ t }}</span>{% endfor %}</div>{% endif %}
+  </div>
+  <div class="detail-actions">
+    <a class="btn" href="{{ url_for('loverlist.work_edit', wid=work.id) }}">编辑</a>
+    <form class="inline js-confirm" method="post" data-msg="确定删除作品「{{ work.code }}」?" action="{{ url_for('loverlist.work_delete', wid=work.id) }}">
+      <button class="btn btn-danger" type="submit">删除</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <dl class="props">
+    <dt>番号</dt><dd class="strong">{{ work.code }}</dd>
+    <dt>标题</dt><dd>{{ work.title or '—' }}</dd>
+    <dt>文件名</dt><dd class="mono">{{ work.filename or '—' }}</dd>
+    <dt>状态</dt><dd>{{ work.status or '—' }}</dd>
+    <dt>备注</dt><dd>{{ work.notes or '—' }}</dd>
+    <dt>录入时间</dt><dd>{{ work.created_at }}</dd>
+  </dl>
+</div>
+
+<div class="card">
+  <h2>阵容({{ credits|length }})</h2>
+  <table class="table">
+    <thead><tr><th>人物</th><th>关系</th><th>角色名</th><th>心动</th><th></th></tr></thead>
+    <tbody>
+    {% for c in credits %}
+      <tr>
+        <td><a href="{{ url_for('loverlist.person_detail', pid=c.person_id) }}">{{ c.person_name }}</a>{% if c.person_kana %} <span class="muted">{{ c.person_kana }}</span>{% endif %}</td>
+        <td>{{ c.role }}</td>
+        <td>{{ c.character_name or '—' }}</td>
+        <td>💗 {{ c.person_hearts }}</td>
+        <td>
+          <form class="inline js-confirm" method="post" data-msg="将「{{ c.person_name }}」移出本作品阵容?" action="{{ url_for('loverlist.credit_delete', cid=c.id) }}">
+            <input type="hidden" name="work_id" value="{{ work.id }}">
+            <button class="btn btn-small btn-danger" type="submit">移除</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="empty">还没有阵容,用下方表单添加。</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <form class="form row-form" method="post" action="{{ url_for('loverlist.credit_add', wid=work.id) }}">
+    <label>人物
+      <select name="person_id" required>
+        <option value="">— 选择人物 —</option>
+        {% for p in persons %}<option value="{{ p.id }}">{{ p.name }}{% if p.kana %}({{ p.kana }}){% endif %}</option>{% endfor %}
+      </select>
+    </label>
+    <label>关系
+      <input name="role" list="role-list" placeholder="出演">
+      <datalist id="role-list">{% for r in role_choices %}<option value="{{ r }}">{% endfor %}</datalist>
+    </label>
+    <label>角色名<input name="character_name" placeholder="可空"></label>
+    <button class="btn btn-primary" type="submit">添加到阵容</button>
+  </form>
+</div>
+{% endblock %}

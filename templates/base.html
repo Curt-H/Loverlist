@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}仪表盘{% endblock %} · Loverlist</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{{ url_for('loverlist.dashboard') }}">💗 Loverlist</a>
+  <nav class="nav">
+    <a href="{{ url_for('loverlist.dashboard') }}" class="{{ 'active' if request.endpoint == 'loverlist.dashboard' }}">仪表盘</a>
+    <a href="{{ url_for('loverlist.persons') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('loverlist.person') }}">人物</a>
+    <a href="{{ url_for('loverlist.works') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('loverlist.work') or request.endpoint == 'loverlist.credit_delete' }}">作品</a>
+    <a href="{{ url_for('loverlist.favorites') }}" class="{{ 'active' if request.endpoint == 'loverlist.favorites' }}">心动向</a>
+  </nav>
+</header>
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}<div class="flashes">{% for cat, m in msgs %}<div class="flash flash-{{ cat }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+{% endwith %}
+<main class="container">
+{% block content %}{% endblock %}
+</main>
+<footer class="footer">Loverlist · 人物与影视作品管理 · 本地 SQLite 存储</footer>
+<script>
+document.addEventListener('click', async (e) => {
+  const heart = e.target.closest('.js-heart');
+  if (heart) {
+    const res = await fetch(heart.dataset.url, {method: 'POST'});
+    if (res.ok) {
+      const d = await res.json();
+      const c = heart.querySelector('.heart-count');
+      if (c) c.textContent = d.heart_count;
+      heart.classList.add('pop');
+      setTimeout(() => heart.classList.remove('pop'), 350);
+    }
+    return;
+  }
+  const fav = e.target.closest('.js-fav');
+  if (fav) {
+    const res = await fetch(fav.dataset.url, {method: 'POST'});
+    if (res.ok) {
+      const d = await res.json();
+      fav.classList.toggle('active', !!d.is_favorite);
+      fav.textContent = d.is_favorite ? '★ 收藏中' : '☆ 收藏';
+    }
+  }
+});
+document.querySelectorAll('form.js-confirm').forEach(f => {
+  f.addEventListener('submit', (e) => {
+    if (!confirm(f.dataset.msg || '确定删除?')) e.preventDefault();
+  });
+});
+const tpl = document.getElementById('agency-tpl');
+if (tpl) {
+  document.getElementById('add-agency').addEventListener('click', () => {
+    document.getElementById('agency-rows').appendChild(tpl.content.cloneNode(true));
+  });
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('js-remove-row')) {
+      e.target.closest('.agency-row').remove();
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑作品' if work else '新建作品' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ ('编辑作品 · ' + work.code) if work else '新建作品' }}</h1>
+  <a class="btn btn-ghost" href="{{ url_for('loverlist.work_detail', wid=work.id) if work else url_for('loverlist.works') }}">返回</a>
+</div>
+
+<form class="form" method="post" action="{{ url_for('loverlist.work_update', wid=work.id) if work else url_for('loverlist.work_create') }}">
+  <div class="grid">
+    <label>番号 * <span class="hint">(建议 英文-3~4位数字,如 LOV-123,不符仅提示不拦截)</span>
+      <input name="code" required placeholder="LOV-123" value="{{ work.code if work else '' }}">
+    </label>
+    <label>标题<input name="title" value="{{ work.title if work else '' }}"></label>
+    <label>风格TAG <span class="hint">(逗号分隔,如:恋爱,青春)</span>
+      <input name="tags" value="{{ tags_raw }}" placeholder="恋爱,青春,治愈">
+    </label>
+    <label>文件名 <span class="hint">(预留字段)</span><input name="filename" value="{{ work.filename if work else '' }}"></label>
+    <label>状态 <span class="hint">(预留字段)</span><input name="status" value="{{ work.status if work else '' }}"></label>
+  </div>
+  <label>备注<textarea name="notes" rows="2">{{ work.notes if work else '' }}</textarea></label>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">保存</button>
+    <a class="btn btn-ghost" href="{{ url_for('loverlist.work_detail', wid=work.id) if work else url_for('loverlist.works') }}">取消</a>
+  </div>
+</form>
+{% endblock %}
