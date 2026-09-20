@@ -86,9 +86,9 @@ Loverlist/
 
 ## Git 说明
 
-`.gitignore` 排除了 `PYTHON/`(第三方运行时,重装脚本见 setup.bat 注释)与 `data/*.db`
-(个人数据二进制,频繁变更会让仓库膨胀;备份走 CSV 导出)。提交信息采用
-`类型: 中文描述` 约定(chore/feat/docs)。
+`.gitignore` 排除了 `PYTHON/`(第三方运行时,重装脚本见 setup.bat 注释)、**`data/` 整个数据文件夹**
+(数据库与头像属个人数据,备份走 CSV 导出或直接拷贝该文件夹)与 **`data.ini`**(记录本机数据位置,
+换机器/换路径需重新指定)。提交信息采用 `类型: 中文描述` 约定(chore/feat/docs)。
 
 ## 预留字段
 
