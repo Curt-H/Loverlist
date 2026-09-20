@@ -5,7 +5,7 @@
 {% macro heart_btn(p) -%}{{ heart_btn_for(p.id, p.heart_count) }}{%- endmacro %}
 
 {% macro heart_display(p) -%}
-<span class="heart-badge" title="心动指数(仅人物列表/详情与作品详情可+1)">💗 {{ p.heart_count }}</span>
+<span class="heart-badge" title="心动指数(仅人物详情与作品详情可+1)">💗 {{ p.heart_count }}</span>
 {%- endmacro %}
 
 {% macro fav_btn(p) -%}

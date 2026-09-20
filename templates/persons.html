@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import heart_btn, fav_btn, paginate, bwh, avatar %}
+{% from "_macros.html" import heart_display, fav_btn, paginate, bwh, avatar %}
 {% block title %}人物{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -46,7 +46,7 @@
       <td>{{ bwh(p) }}</td>
       <td>{{ p.cup or '—' }}</td>
       <td class="muted">{{ p.current_agency or '—' }}</td>
-      <td class="nowrap">{{ heart_btn(p) }}</td>
+      <td class="nowrap">{{ heart_display(p) }}</td>
       <td class="nowrap">{{ fav_btn(p) }}</td>
       <td class="nowrap actions">
         <a class="btn btn-small" href="{{ url_for('loverlist.person_edit', pid=p.id) }}">编辑</a>

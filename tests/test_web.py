@@ -174,7 +174,9 @@ class WebTests(unittest.TestCase):
             f"/works/{wid}/credits",
             data={"person_id": str(pid), "role": "", "character_name": ""},
         )
-        self.assertIn(b"heart-btn js-heart", self.client.get("/persons").data)
+        persons_html = self.client.get("/persons").data
+        self.assertNotIn(b"heart-btn js-heart", persons_html)   # /persons 心动改纯展示
+        self.assertIn(b"heart-badge", persons_html)
         self.assertIn(b"heart-btn js-heart", self.client.get(f"/persons/{pid}").data)
         work_html = self.client.get(f"/works/{wid}").data
         self.assertIn(b"heart-btn js-heart", work_html)             # 阵容表可+1
