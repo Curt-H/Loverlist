@@ -49,11 +49,17 @@ PYTHON\python.exe main.py --port 8080 --no-browser
 ## 测试
 
 ```
-PYTHON\python.exe -m unittest discover tests
+run_tests.bat                      :: 一键运行(内嵌 Python)
+PYTHON\python.exe run_tests.py     :: 或手动执行;加 -v 显示每个用例
+python run_tests.py                :: 系统 Python(需先装好 requirements.txt 依赖)
 ```
 
+> 说明:内嵌版 Python(`python311._pth` 的隔离模式)不会把项目根加入模块搜索路径,
+> 直接 `-m unittest discover` 会报 `No module named 'loverlist'`;
+> `run_tests.py` 与 `main.py` 一样自带路径修复,任意解释器、任意目录下均可运行。
+
 覆盖:建库与约束、人物/作品/阵容业务、列表筛选排序分页、今日心动确定性、
-CSV 往返(导出→清空→导入还原)、Web 请求流。当前 **41 例全部通过**。
+CSV 往返(导出→清空→导入还原)、Web 请求流。当前 **74 例全部通过**。
 
 ## CSV 格式
 
@@ -75,6 +81,8 @@ Loverlist/
 ├── main.py            # 入口:waitress 启动 / --demo
 ├── setup.bat          # 一键安装(引导 pip + 依赖)
 ├── run.bat            # 一键启动
+├── run_tests.bat      # 一键跑测试(调 run_tests.py)
+├── run_tests.py       # 测试入口(自带路径修复,详见「测试」)
 ├── requirements.txt   # 依赖钉版本(flask 3.1.3 / waitress 3.0.2)
 ├── loverlist/         # 应用包:__init__(工厂) db(建库) services(业务) csvio(导入导出) demo(演示数据) routes(视图)
 ├── templates/         # Jinja2 模板(全中文)

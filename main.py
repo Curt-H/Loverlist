@@ -1,8 +1,15 @@
 """Loverlist 入口:python main.py [--data-dir DIR] [--demo] [--host H] [--port P] [--no-browser]"""
+import sys
+from pathlib import Path
+
+# 便携部署:显式把 main.py 所在目录(项目根)加入模块搜索路径。
+# 内嵌版 Python(python311._pth 的隔离模式)不会自动加入脚本目录,
+# 无论用哪个解释器、从哪个目录启动,from loverlist import ... 都可用。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import argparse
 import threading
 import webbrowser
-from pathlib import Path
 
 from loverlist import config, create_app
 from loverlist.db import get_connection, init_db
