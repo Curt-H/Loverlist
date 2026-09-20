@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import heart_btn %}
+{% from "_macros.html" import heart_btn, avatar %}
 {% block title %}仪表盘{% endblock %}
 {% block content %}
 <h1>仪表盘</h1>
@@ -14,6 +14,7 @@
 <div class="card today-card">
   <h2>💗 今日心动</h2>
   <div class="today-body">
+    {{ avatar(today, 'avatar avatar-md') }}
     <div>
       <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.id) }}">{{ today.name }}</a>
       {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
@@ -31,7 +32,7 @@
     <h2>心动 Top 5</h2>
     <ol class="rank-list">
       {% for p in top %}
-      <li><a href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a><span class="rank-hearts">💗 {{ p.heart_count }}</span></li>
+      <li><span>{{ avatar(p) }}</span><a href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a><span class="rank-hearts">💗 {{ p.heart_count }}</span></li>
       {% else %}<li class="muted">暂无数据</li>{% endfor %}
     </ol>
   </div>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import heart_btn, fav_btn %}
+{% from "_macros.html" import heart_btn, fav_btn, avatar %}
 {% block title %}心动向{% endblock %}
 {% block content %}
 <h1>心动向</h1>
@@ -8,6 +8,7 @@
 <div class="card today-card">
   <h2>💗 今日心动</h2>
   <div class="today-body">
+    {{ avatar(today, 'avatar avatar-md') }}
     <div>
       <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.id) }}">{{ today.name }}</a>
       {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
@@ -27,7 +28,7 @@
       {% for p in top %}
         <tr>
           <td class="muted">{{ loop.index }}</td>
-          <td><a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a></td>
+          <td>{{ avatar(p) }} <a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a></td>
           <td class="nowrap">{{ heart_btn(p) }}</td>
           <td class="nowrap">{{ fav_btn(p) }}</td>
         </tr>

@@ -1,3 +1,4 @@
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -5,13 +6,20 @@ from pathlib import Path
 from loverlist import create_app, services
 from loverlist.db import get_connection
 
+PNG_1PX = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
 
 class WebTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.db_path = Path(tmp.name) / "web_test.db"
-        self.app = create_app(self.db_path)
+        self.avatar_dir = Path(tmp.name) / "avatars"
+        self.app = create_app(self.db_path, avatar_dir=self.avatar_dir)
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 
@@ -100,6 +108,54 @@ class WebTests(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertIn("ひなた".encode("utf-8"), r.data)
+
+    def test_avatar_upload_reject_delete_and_cleanup(self):
+        self.client.post("/persons", data={"name": "ひなた"})
+        pid = self._first_person_id()
+        # 上传合法 PNG → 落盘 + 详情页引用
+        r = self.client.post(
+            f"/persons/{pid}/avatar",
+            data={"file": (io.BytesIO(PNG_1PX), "a.png")},
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+        self.assertIn("头像已更新".encode("utf-8"), r.data)
+        files = list(self.avatar_dir.glob(f"{pid}_*"))
+        self.assertEqual(len(files), 1)
+        r = self.client.get(f"/persons/{pid}")
+        self.assertIn(f"/avatars/{files[0].name}".encode("utf-8"), r.data)
+        self.assertEqual(
+            self.client.get(f"/avatars/{files[0].name}").status_code, 200
+        )
+        # 非图片内容被拒
+        r = self.client.post(
+            f"/persons/{pid}/avatar",
+            data={"file": (io.BytesIO(b"not an image"), "a.txt")},
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+        self.assertIn("不支持的图片格式".encode("utf-8"), r.data)
+        # 移除 → 文件清空
+        r = self.client.post(f"/persons/{pid}/avatar/delete", follow_redirects=True)
+        self.assertIn("头像已移除".encode("utf-8"), r.data)
+        self.assertEqual(list(self.avatar_dir.glob(f"{pid}_*")), [])
+        # 删除人物联动清理头像文件
+        self.client.post("/persons", data={"name": "两人"})
+        conn = get_connection(self.db_path)
+        try:
+            pid2 = conn.execute(
+                "SELECT id FROM persons WHERE name = '两人'"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.client.post(
+            f"/persons/{pid2}/avatar",
+            data={"file": (io.BytesIO(PNG_1PX), "b.png")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(len(list(self.avatar_dir.glob(f"{pid2}_*"))), 1)
+        self.client.post(f"/persons/{pid2}/delete")
+        self.assertEqual(list(self.avatar_dir.glob(f"{pid2}_*")), [])
 
     def test_favorites_page(self):
         r = self.client.get("/favorites")

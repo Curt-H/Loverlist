@@ -1,9 +1,12 @@
 """Web 路由:全中文界面,页面清单见 README。"""
 import io
 import sqlite3
+import time
+from pathlib import Path
 
-from flask import (Blueprint, Response, abort, flash, g, jsonify, redirect,
-                   render_template, request, url_for)
+from flask import (Blueprint, Response, abort, current_app, flash, g, jsonify,
+                   redirect, render_template, request, send_from_directory,
+                   url_for)
 
 from . import csvio, demo, services
 
@@ -166,6 +169,7 @@ def person_update(pid):
 @bp.post("/persons/<int:pid>/delete")
 def person_delete(pid):
     services.delete_person(g.db, pid)
+    _remove_avatar_files(pid)
     flash("人物已删除", "ok")
     return redirect(url_for("loverlist.persons"))
 
@@ -387,3 +391,64 @@ def seed_demo_route():
         flash(f"已灌入演示数据:人物 {counts['persons']} 位、"
               f"作品 {counts['works']} 部、阵容 {counts['credits']} 条", "ok")
     return redirect(url_for("loverlist.data_page"))
+
+
+# ---------------------------------------------------------------------------
+# 头像(1:1,512×512,本地存储于 data/avatars)
+# ---------------------------------------------------------------------------
+AVATAR_MAGIC = ((b"\x89PNG\r\n\x1a\n", "png"), (b"\xff\xd8\xff", "jpg"), (b"RIFF", "webp"))
+
+
+def _avatar_dir() -> Path:
+    return Path(current_app.config["AVATAR_DIR"])
+
+
+def _remove_avatar_files(pid: int) -> None:
+    d = _avatar_dir()
+    if d.exists():
+        for f in d.glob(f"{pid}_*.*"):
+            f.unlink(missing_ok=True)
+
+
+@bp.post("/persons/<int:pid>/avatar")
+def avatar_upload(pid):
+    """接收前端裁剪/缩放好的 512×512 图片并落盘。"""
+    if services.get_person(g.db, pid) is None:
+        abort(404)
+    detail = url_for("loverlist.person_detail", pid=pid)
+    fs = request.files.get("file")
+    if fs is None or not fs.filename:
+        flash("请选择图片文件", "error")
+        return redirect(detail)
+    raw = fs.read()
+    ext = next((e for magic, e in AVATAR_MAGIC if raw.startswith(magic)), None)
+    if ext == "webp" and raw[8:12] != b"WEBP":
+        ext = None
+    if ext is None:
+        flash("不支持的图片格式(请使用 PNG / JPEG / WebP)", "error")
+        return redirect(detail)
+    _remove_avatar_files(pid)  # 换头像时清掉旧文件
+    filename = f"{pid}_{int(time.time())}.{ext}"
+    d = _avatar_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    (d / filename).write_bytes(raw)
+    g.db.execute("UPDATE persons SET avatar = ? WHERE id = ?", (filename, pid))
+    g.db.commit()
+    flash("头像已更新", "ok")
+    return redirect(detail)
+
+
+@bp.get("/avatars/<filename>")
+def avatar_file(filename):
+    return send_from_directory(_avatar_dir(), filename)
+
+
+@bp.post("/persons/<int:pid>/avatar/delete")
+def avatar_delete(pid):
+    if services.get_person(g.db, pid) is None:
+        abort(404)
+    _remove_avatar_files(pid)
+    g.db.execute("UPDATE persons SET avatar = '' WHERE id = ?", (pid,))
+    g.db.commit()
+    flash("头像已移除", "ok")
+    return redirect(url_for("loverlist.person_detail", pid=pid))

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import heart_btn, fav_btn, paginate, bwh %}
+{% from "_macros.html" import heart_btn, fav_btn, paginate, bwh, avatar %}
 {% block title %}人物{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -27,13 +27,14 @@
 <table class="table">
   <thead>
     <tr>
-      <th>姓名</th><th>别名 / 假名</th><th>出生</th><th>身高</th><th>三围</th>
+      <th></th><th>姓名</th><th>别名 / 假名</th><th>出生</th><th>身高</th><th>三围</th>
       <th>罩杯</th><th>事务所</th><th>心动</th><th></th><th></th>
     </tr>
   </thead>
   <tbody>
   {% for p in rows %}
     <tr>
+      <td class="nowrap">{{ avatar(p) }}</td>
       <td><a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a>{% if p.is_favorite %} <span class="star">★</span>{% endif %}</td>
       <td class="muted">{{ p.alias }}{% if p.alias and p.kana %} / {% endif %}{{ p.kana }}</td>
       <td>{{ p.birth_ym or '—' }}</td>
@@ -51,7 +52,7 @@
       </td>
     </tr>
   {% else %}
-    <tr><td colspan="10" class="empty">还没有人物,点右上角「+ 新建人物」开始吧。</td></tr>
+    <tr><td colspan="11" class="empty">还没有人物,点右上角「+ 新建人物」开始吧。</td></tr>
   {% endfor %}
   </tbody>
 </table>

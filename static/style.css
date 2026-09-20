@@ -176,3 +176,22 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 .code-row input:first-child { flex: 2; }
 .code-row input:last-child { flex: 1; }
 .code-dash { font-weight: 700; color: var(--muted); }
+
+/* ---- 头像 ---- */
+.avatar { border-radius: 50%; object-fit: cover; background: var(--pink-light); display: inline-flex; align-items: center; justify-content: center; color: var(--pink-dark); font-weight: 700; flex: none; }
+.avatar-sm { width: 32px; height: 32px; font-size: 14px; }
+.avatar-md { width: 64px; height: 64px; font-size: 24px; }
+.avatar-lg { width: 128px; height: 128px; font-size: 44px; }
+.avatar-ph { border: 2px solid #f3c8d8; }
+.avatar-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.avatar-ops { max-width: 420px; }
+
+/* ---- 裁剪层(非 1:1 上传时弹出) ---- */
+.crop-layer { position: fixed; inset: 0; background: rgba(30, 20, 26, .72); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.crop-layer[hidden] { display: none; }
+.crop-panel { background: #fff; border-radius: 14px; padding: 16px 20px 18px; width: min(560px, calc(100% - 40px)); }
+.crop-stage { position: relative; margin: 12px auto 4px; max-width: 480px; line-height: 0; user-select: none; touch-action: none; }
+.crop-stage img { width: 100%; height: auto; display: block; }
+.crop-box { position: absolute; border: 2px solid var(--pink); box-shadow: 0 0 0 9999px rgba(43, 35, 49, .45); cursor: move; }
+.crop-tools { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+.crop-tools input[type=range] { flex: 1; }

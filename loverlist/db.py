@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS persons (
     waist       INTEGER,                       -- 腰围 W
     hip         INTEGER,                       -- 臀围 H
     cup         TEXT    NOT NULL DEFAULT '',   -- 罩杯
+    avatar      TEXT    NOT NULL DEFAULT '',   -- 头像文件名(512×512,存 data/avatars)
     heart_count INTEGER NOT NULL DEFAULT 0,    -- 心动指数(无上限,点击+1)
     is_favorite INTEGER NOT NULL DEFAULT 0,    -- 收藏/心头好
     notes       TEXT    NOT NULL DEFAULT '',   -- 备注
@@ -85,6 +86,9 @@ def get_connection(db_path=None) -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    """建表(幂等,已存在则跳过)。"""
+    """建表(幂等);老库自动补新增列(轻量迁移)。"""
     conn.executescript(SCHEMA)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(persons)")}
+    if "avatar" not in cols:
+        conn.execute("ALTER TABLE persons ADD COLUMN avatar TEXT NOT NULL DEFAULT ''")
     conn.commit()

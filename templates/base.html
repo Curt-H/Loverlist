@@ -24,6 +24,21 @@
 {% block content %}{% endblock %}
 </main>
 <footer class="footer">Loverlist · 人物与影视作品管理 · 本地 SQLite 存储</footer>
+<div id="crop-layer" class="crop-layer" hidden>
+  <div class="crop-panel">
+    <h2>裁剪头像 <span class="hint">(1:1 选区,输出 512×512)</span></h2>
+    <div class="crop-stage">
+      <img id="crop-img" alt="待裁剪图片">
+      <div class="crop-box" id="crop-box"></div>
+    </div>
+    <div class="crop-tools">
+      <span class="muted small">选区大小</span>
+      <input type="range" id="crop-size" min="20" max="100" value="90">
+      <button class="btn btn-ghost" id="crop-cancel" type="button">取消</button>
+      <button class="btn btn-primary" id="crop-ok" type="button">确认并上传</button>
+    </div>
+  </div>
+</div>
 <script>
 document.addEventListener('click', async (e) => {
   const heart = e.target.closest('.js-heart');
@@ -62,6 +77,86 @@ if (tpl) {
     if (e.target.classList.contains('js-remove-row')) {
       e.target.closest('.agency-row').remove();
     }
+  });
+}
+
+// ---- 头像上传与 1:1 裁剪 ----
+const avatarInput = document.getElementById('avatar-input');
+if (avatarInput) {
+  const layer = document.getElementById('crop-layer');
+  const cimg = document.getElementById('crop-img');
+  const box = document.getElementById('crop-box');
+  const slider = document.getElementById('crop-size');
+  const uploadUrl = avatarInput.dataset.url;
+  let img = null, dispW = 0, dispH = 0, size = 0, bx = 0, by = 0;
+
+  const clamp = () => {
+    size = Math.max(40, Math.min(size, Math.min(dispW, dispH)));
+    bx = Math.max(0, Math.min(bx, dispW - size));
+    by = Math.max(0, Math.min(by, dispH - size));
+    box.style.width = box.style.height = size + 'px';
+    box.style.left = bx + 'px';
+    box.style.top = by + 'px';
+  };
+  const post = (canvas) => {
+    canvas.toBlob((blob) => {
+      const fd = new FormData();
+      fd.append('file', blob, 'avatar.png');
+      fetch(uploadUrl, {method: 'POST', body: fd}).finally(() => location.reload());
+    }, 'image/png');
+  };
+  avatarInput.addEventListener('change', () => {
+    const file = avatarInput.files[0];
+    if (!file) return;
+    img = new Image();
+    img.onload = () => {
+      if (img.width === img.height) {
+        // 已是 1:1:不弹裁剪,直接缩放为 512×512 上传
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = 512;
+        cv.getContext('2d').drawImage(img, 0, 0, img.width, img.height, 0, 0, 512, 512);
+        post(cv);
+      } else {
+        // 非 1:1:弹出裁剪层
+        cimg.src = img.src;
+        layer.hidden = false;
+        requestAnimationFrame(() => {
+          dispW = cimg.clientWidth;
+          dispH = cimg.clientHeight;
+          size = Math.min(dispW, dispH) * (slider.value / 100);
+          bx = (dispW - size) / 2;
+          by = (dispH - size) / 2;
+          clamp();
+        });
+      }
+    };
+    img.src = URL.createObjectURL(file);
+    avatarInput.value = '';
+  });
+  slider.addEventListener('input', () => {
+    if (!layer.hidden) {
+      size = Math.min(dispW, dispH) * (slider.value / 100);
+      clamp();
+    }
+  });
+  document.getElementById('crop-cancel').addEventListener('click', () => { layer.hidden = true; });
+  document.getElementById('crop-ok').addEventListener('click', () => {
+    const f = img.naturalWidth / dispW;   // 显示坐标 -> 原图像素
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 512;
+    cv.getContext('2d').drawImage(img, bx * f, by * f, size * f, size * f, 0, 0, 512, 512);
+    post(cv);
+  });
+  box.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const ox = e.clientX - bx, oy = e.clientY - by;
+    const move = (ev) => { bx = ev.clientX - ox; by = ev.clientY - oy; clamp(); };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   });
 }
 </script>
