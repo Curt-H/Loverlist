@@ -97,4 +97,8 @@ def init_db(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE works ADD COLUMN is_vr INTEGER NOT NULL DEFAULT 0")
     # 历史数据迁移:老库空状态视为已收录(新作品由服务层默认写入「评审中」,不受影响)
     conn.execute("UPDATE works SET status = '已收录' WHERE status = ''")
+    # 文件名为派生字段(番号@出演演员),启动时全量重算一次纠正旧值
+    from . import services as _svc
+    for row in conn.execute("SELECT id FROM works").fetchall():
+        _svc.refresh_filename(conn, row["id"])
     conn.commit()

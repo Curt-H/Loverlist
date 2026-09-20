@@ -157,7 +157,6 @@ def import_works(conn, text_stream):
         data = {
             "code": code,
             "title": _row_val(row, "标题"),
-            "filename": _row_val(row, "文件名"),
             "status": status,
             "is_vr": services.normalize_bool(_row_val(row, "VR")),
             "notes": _row_val(row, "备注"),

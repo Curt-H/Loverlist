@@ -27,6 +27,8 @@ STATUS_LEGACY = "已收录"     # 存量空状态归入值
 WORK_TAGS_SQL = "(SELECT GROUP_CONCAT(wt.tag, ',') FROM work_tags wt WHERE wt.work_id = w.id) AS tags"
 WORK_CAST_SQL = "(SELECT COUNT(*) FROM credits c WHERE c.work_id = w.id) AS cast_size"
 
+CAST_ROLES = ("出演", "主演", "配角", "客串")   # 计入文件名的出演类关系(幕后职务不计)
+
 # 当前事务所子查询:无结束年(至今)优先,否则取最近一段
 _CURRENT_AGENCY_SQL = (
     "(SELECT ah.agency_name FROM agency_history ah"
@@ -188,6 +190,7 @@ def create_person(conn, data, agencies=None):
 def update_person(conn, person_id, data, agencies=None):
     if not (data.get("name") or "").strip():
         raise ValueError("姓名必填")
+    affected = _work_ids_of_person(conn, person_id)
     conn.execute(
         "UPDATE persons SET name = ?, alias = ?, kana = ?, gender = ?, birth_ym = ?,"
         " height = ?, bust = ?, waist = ?, hip = ?, cup = ?, notes = ? WHERE id = ?",
@@ -195,6 +198,14 @@ def update_person(conn, person_id, data, agencies=None):
     )
     _replace_agencies(conn, person_id, agencies)
     conn.commit()
+    for wid in affected:
+        refresh_filename(conn, wid)
+
+
+def _work_ids_of_person(conn, person_id):
+    return [r["work_id"] for r in conn.execute(
+        "SELECT DISTINCT work_id FROM credits WHERE person_id = ?", (person_id,)
+    ).fetchall()]
 
 
 def _replace_agencies(conn, person_id, agencies):
@@ -211,8 +222,11 @@ def _replace_agencies(conn, person_id, agencies):
 
 
 def delete_person(conn, person_id):
+    affected = _work_ids_of_person(conn, person_id)
     conn.execute("DELETE FROM persons WHERE id = ?", (person_id,))
     conn.commit()
+    for wid in affected:
+        refresh_filename(conn, wid)
 
 
 def increment_heart(conn, person_id):
@@ -334,38 +348,38 @@ def create_work(conn, data, tags_raw=""):
     if not code:
         raise ValueError("番号必填")
     cur = conn.execute(
-        "INSERT INTO works (code, title, filename, status, is_vr, notes) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO works (code, title, status, is_vr, notes) VALUES (?, ?, ?, ?, ?)",
         (
             code,
             (data.get("title") or "").strip(),
-            (data.get("filename") or "").strip(),
             normalize_status(data.get("status")),
             normalize_bool(data.get("is_vr")),
             (data.get("notes") or "").strip(),
         ),
     )
     _replace_tags(conn, cur.lastrowid, _split_tags(tags_raw))
+    refresh_filename(conn, cur.lastrowid)
     conn.commit()
     return cur.lastrowid
 
 
 def update_work(conn, work_id, data, tags_raw=""):
-    """更新作品(不含状态——状态只能在评审页更改)。"""
+    """更新作品(不含状态与文件名——前者仅在评审页改,后者按阵容自动派生)。"""
     code = normalize_code(data.get("code"))
     if not code:
         raise ValueError("番号必填")
     conn.execute(
-        "UPDATE works SET code = ?, title = ?, filename = ?, is_vr = ?, notes = ? WHERE id = ?",
+        "UPDATE works SET code = ?, title = ?, is_vr = ?, notes = ? WHERE id = ?",
         (
             code,
             (data.get("title") or "").strip(),
-            (data.get("filename") or "").strip(),
             normalize_bool(data.get("is_vr")),
             (data.get("notes") or "").strip(),
             work_id,
         ),
     )
     _replace_tags(conn, work_id, _split_tags(tags_raw))
+    refresh_filename(conn, work_id)
     conn.commit()
 
 
@@ -396,6 +410,32 @@ def judged_works(conn):
         " FROM works w WHERE w.status != '评审中'"
         " ORDER BY w.created_at DESC, w.id DESC"
     ).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# 文件名自动派生:番号@出演演员1&出演演员2&…(幕后职务不计;无出演时仅番号)
+# ---------------------------------------------------------------------------
+def build_filename(conn, work_id):
+    w = get_work(conn, work_id)
+    if w is None:
+        return ""
+    placeholders = ",".join("?" * len(CAST_ROLES))
+    names = [r["person_name"] for r in conn.execute(
+        "SELECT p.name AS person_name"
+        " FROM credits c JOIN persons p ON p.id = c.person_id"
+        f" WHERE c.work_id = ? AND c.role IN ({placeholders})"
+        " ORDER BY c.id ASC",
+        (work_id, *CAST_ROLES),
+    ).fetchall()]
+    return "@".join([w["code"]] + (["&".join(names)] if names else []))
+
+
+def refresh_filename(conn, work_id):
+    """按当前阵容重算文件名并落库,返回新文件名。"""
+    fn = build_filename(conn, work_id)
+    conn.execute("UPDATE works SET filename = ? WHERE id = ?", (fn, work_id))
+    conn.commit()
+    return fn
 
 
 def delete_work(conn, work_id):
@@ -437,13 +477,19 @@ def add_credit(conn, work_id, person_id, role="", character_name=""):
         )
     except sqlite3.IntegrityError:
         return None, "该人物在本作品中已存在相同关系类型"
+    refresh_filename(conn, work_id)
     conn.commit()
     return cur.lastrowid, ""
 
 
 def remove_credit(conn, credit_id):
+    row = conn.execute(
+        "SELECT work_id FROM credits WHERE id = ?", (credit_id,)
+    ).fetchone()
     conn.execute("DELETE FROM credits WHERE id = ?", (credit_id,))
     conn.commit()
+    if row is not None:
+        refresh_filename(conn, row["work_id"])
 
 
 # ---------------------------------------------------------------------------

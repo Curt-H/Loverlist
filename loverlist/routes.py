@@ -67,7 +67,6 @@ def _work_data_from_form(code):
     return {
         "code": code,
         "title": request.form.get("title", ""),
-        "filename": request.form.get("filename", ""),
         "is_vr": request.form.get("is_vr", ""),
         "notes": request.form.get("notes", ""),
     }

@@ -21,10 +21,11 @@
     <dt>标题</dt><dd>{{ work.title or '—' }}</dd>
     <dt>状态</dt><dd>{{ status_badge(work.status) }} <span class="muted small">(状态在「评审」页更改)</span></dd>
     <dt>文件名</dt>
-    <dd class="mono">{{ work.filename or '—' }}
-      {% if work.filename %}
-      <button type="button" class="btn btn-small js-copy" data-copy="{{ work.filename }}" title="复制到剪贴板">📋 复制</button>
-      {% endif %}
+    <dd>
+      <span class="filename-line">
+        <span class="filename-text mono" title="{{ work.filename }}">{{ work.filename }}</span>
+        <button type="button" class="btn btn-small js-copy" data-copy="{{ work.filename }}" title="复制到剪贴板">📋 复制</button>
+      </span>
     </dd>
     <dt>状态</dt><dd>{{ work.status or '—' }}</dd>
     <dt>备注</dt><dd>{{ work.notes or '—' }}</dd>

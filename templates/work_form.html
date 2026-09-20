@@ -19,9 +19,9 @@
     <label>风格TAG <span class="hint">(逗号分隔,如:恋爱,青春)</span>
       <input name="tags" value="{{ tags_raw }}" placeholder="恋爱,青春,治愈">
     </label>
-    <label>文件名 <span class="hint">(预留字段)</span><input name="filename" value="{{ work.filename if work else '' }}"></label>
-    <label class="check-line">
-      <input type="checkbox" name="is_vr" value="1" {{ 'checked' if work is not none and work.is_vr }}> VR作品
+    <label class="vr-label" title="VR作品标记">
+      <input type="checkbox" name="is_vr" value="1" class="vr-toggle" {{ 'checked' if work is not none and work.is_vr }}>
+      <span class="vr-block">VR</span>
     </label>
   </div>
   <label>备注<textarea name="notes" rows="2">{{ work.notes if work else '' }}</textarea></label>

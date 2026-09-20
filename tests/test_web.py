@@ -162,7 +162,7 @@ class WebTests(unittest.TestCase):
         self.client.post("/persons", data={"name": "ひなた"})
         self.client.post(
             "/works",
-            data={"code_alpha": "LOV", "code_num": "001", "filename": "abc_001.mp4"},
+            data={"code_alpha": "LOV", "code_num": "001"},
         )
         conn = get_connection(self.db_path)
         try:
@@ -178,21 +178,24 @@ class WebTests(unittest.TestCase):
         self.assertIn(b"heart-btn js-heart", self.client.get(f"/persons/{pid}").data)
         work_html = self.client.get(f"/works/{wid}").data
         self.assertIn(b"heart-btn js-heart", work_html)             # 阵容表可+1
-        self.assertIn("复制".encode("utf-8"), work_html)             # 复制按钮
-        self.assertIn("abc_001.mp4".encode("utf-8"), work_html)
+        self.assertIn(b"data-copy", work_html)                      # 复制按钮
+        self.assertIn("LOV-001@ひなた".encode("utf-8"), work_html)   # 文件名自动派生
+        self.assertIn(b"filename-text", work_html)                  # 超长省略容器
         self.assertNotIn(b"heart-btn js-heart", self.client.get("/").data)        # 仪表盘纯展示
         self.assertNotIn(b"heart-btn js-heart", self.client.get("/favorites").data)  # 心动向纯展示
         self.assertIn(b"heart-badge", self.client.get("/").data)
-        # 文件名为空的作品:无复制按钮(JS 源码含"复制"字样,故断言按钮专属属性)
-        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        # 表单不再有文件名输入(自动派生)
+        self.assertNotIn(b'name="filename"', self.client.get(f"/works/{wid}/edit").data)
+        # 移除阵容 → 文件名自动重算(仅剩番号)
         conn = get_connection(self.db_path)
         try:
-            wid2 = conn.execute(
-                "SELECT id FROM works WHERE code = 'LOV-002'"
-            ).fetchone()[0]
+            cid = conn.execute("SELECT id FROM credits LIMIT 1").fetchone()[0]
         finally:
             conn.close()
-        self.assertNotIn(b"data-copy", self.client.get(f"/works/{wid2}").data)
+        self.client.post(f"/credits/{cid}/delete", data={"work_id": str(wid)})
+        work_html = self.client.get(f"/works/{wid}").data
+        self.assertNotIn("LOV-001@ひなた".encode("utf-8"), work_html)
+        self.assertIn(b"data-copy", work_html)
 
     def test_works_tag_collapse_markup(self):
         # 演示库标签少于阈值:不出现折叠按钮(JS 源码含 tag-toggle 字样,断言按钮专属 id 属性)

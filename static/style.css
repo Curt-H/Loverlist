@@ -213,10 +213,17 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 .nav-badge { display: inline-block; min-width: 17px; padding: 0 5px; border-radius: 999px; background: var(--pink); color: #fff; font-size: 11px; line-height: 17px; text-align: center; }
 .nav a.active .nav-badge { background: #fff; color: var(--pink); }
 
-/* ---- 状态统计卡 / VR标记 ---- */
-.stat-card-warn .stat-num { color: var(--warn-fg); }
-.stat-card-ok .stat-num { color: var(--ok-fg); }
-.stat-card-reject .stat-num { color: var(--err-fg); }
+/* ---- 状态统计 ---- */
+.stat-multi { font-size: 19px; letter-spacing: 1px; }
 .vr-mark { color: var(--pink-dark); font-weight: 700; cursor: help; }
-.form .check-line { display: flex; align-items: center; margin-bottom: 12px; }
-.form .check-line input[type=checkbox] { display: inline-block; width: auto; margin: 0 6px 0 0; }
+
+/* ---- VR方块按钮(未选中原色,选中红色) ---- */
+.vr-label { display: flex; align-items: center; }
+.vr-toggle { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.vr-block { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--muted); font-weight: 700; letter-spacing: 1px; cursor: pointer; user-select: none; }
+.vr-label:hover .vr-block { border-color: #e02020; color: #e02020; }
+.vr-toggle:checked + .vr-block { background: #e02020; border-color: #c01414; color: #fff; }
+
+/* ---- 文件名(自动派生,超长省略) ---- */
+.filename-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.filename-text { display: inline-block; max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
