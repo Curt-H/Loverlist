@@ -42,13 +42,7 @@ def create_app(db_path=None, avatar_dir=None):
 
     @app.context_processor
     def _inject_review_count():
-        try:
-            count = g.db.execute(
-                "SELECT COUNT(*) FROM works WHERE status = '评审中'"
-            ).fetchone()[0]
-        except Exception:
-            count = 0
-        return {"review_count": count}
+        return {"review_count": services.pending_review_count(g.db)}
 
     from .routes import bp
     app.register_blueprint(bp)

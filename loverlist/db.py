@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS works (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     code       TEXT    NOT NULL UNIQUE,        -- 番号(必填唯一,大写归一)
     title      TEXT    NOT NULL DEFAULT '',    -- 标题
-    filename   TEXT    NOT NULL DEFAULT '',    -- 文件名(预留字段)
+    filename   TEXT    NOT NULL DEFAULT '',    -- 文件名(派生字段:番号@出演演员1&演员2…)
     status     TEXT    NOT NULL DEFAULT '评审中', -- 状态:评审中/已收录/不予收录
     is_vr      INTEGER NOT NULL DEFAULT 0,       -- VR作品(ᯅ 标记)
     notes      TEXT    NOT NULL DEFAULT '',    -- 备注
@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS credits (
 );
 
 CREATE INDEX IF NOT EXISTS idx_persons_heart   ON persons(heart_count DESC);
+CREATE INDEX IF NOT EXISTS idx_works_status    ON works(status);
 CREATE INDEX IF NOT EXISTS idx_agency_person   ON agency_history(person_id);
 CREATE INDEX IF NOT EXISTS idx_tags_work       ON work_tags(work_id);
 CREATE INDEX IF NOT EXISTS idx_tags_tag        ON work_tags(tag);
@@ -97,8 +98,10 @@ def init_db(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE works ADD COLUMN is_vr INTEGER NOT NULL DEFAULT 0")
     # 历史数据迁移:老库空状态视为已收录(新作品由服务层默认写入「评审中」,不受影响)
     conn.execute("UPDATE works SET status = '已收录' WHERE status = ''")
-    # 文件名为派生字段(番号@出演演员),启动时全量重算一次纠正旧值
+    # 文件名为派生字段:启动时只重算“脏行”(文件名为空或与番号不匹配),健康库零额外写入
     from . import services as _svc
-    for row in conn.execute("SELECT id FROM works").fetchall():
-        _svc.refresh_filename(conn, row["id"])
+    for row in conn.execute("SELECT id, code, filename FROM works").fetchall():
+        fn = row["filename"] or ""
+        if fn != row["code"] and not fn.startswith(row["code"] + "@"):
+            _svc.refresh_filename(conn, row["id"])
     conn.commit()

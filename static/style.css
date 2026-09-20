@@ -13,6 +13,7 @@
   --warn-bg: #fdf3dc; --warn-fg: #9a6b00;
   --err-bg: #fdeaea;  --err-fg: #b3261e; --err-border: #f3c6c4;
   --fav-bg: #fff7e0; --fav-border: #f2d488; --fav-fg: #9a6b00;
+  --accent-border: #f3c8d8;
 }
 
 /* ---- 黑夜主题(顶栏 🌙 按钮切换,localStorage 记忆) ---- */
@@ -30,6 +31,7 @@
   --warn-bg: #3a2f14; --warn-fg: #ffd37a;
   --err-bg: #3d2020;  --err-fg: #ff9d96; --err-border: #6b3230;
   --fav-bg: #3a3115; --fav-border: #6b5a20; --fav-fg: #ffd37a;
+  --accent-border: #5c3a4a;
 }
 * { box-sizing: border-box; }
 body {
@@ -119,7 +121,7 @@ h2 { font-size: 16px; margin: 0 0 12px; }
   padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--card); color: var(--ink); font-size: 14px; cursor: pointer;
 }
-.btn:hover { background: var(--pink-light); text-decoration: none; border-color: #f3c8d8; }
+.btn:hover { background: var(--pink-light); text-decoration: none; border-color: var(--accent-border); }
 .btn-primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
 .btn-primary:hover { background: var(--pink-dark); border-color: var(--pink-dark); }
 .btn-danger { color: var(--err-fg); border-color: var(--err-border); }
@@ -151,7 +153,7 @@ h2 { font-size: 16px; margin: 0 0 12px; }
 .chip:hover { text-decoration: none; border-color: var(--pink); }
 .chip.active { background: var(--pink); color: #fff; }
 .chip-cnt { opacity: .75; font-size: 12px; }
-.chip-now { background: #e7f7ec; color: var(--ok-fg); }
+.chip-now { background: var(--ok-bg); color: var(--ok-fg); }
 
 /* ---- 表单 ---- */
 .form label { display: block; margin-bottom: 12px; font-size: 14px; color: var(--ink); }
@@ -207,7 +209,7 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 .avatar-sm { width: 32px; height: 32px; font-size: 14px; }
 .avatar-md { width: 64px; height: 64px; font-size: 24px; }
 .avatar-lg { width: 128px; height: 128px; font-size: 44px; }
-.avatar-ph { border: 2px solid #f3c8d8; }
+.avatar-ph { border: 2px solid var(--accent-border); }
 .avatar-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .avatar-ops { max-width: 420px; }
 

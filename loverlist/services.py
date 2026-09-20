@@ -42,7 +42,7 @@ def check_birth_ym(value) -> bool:
     return bool(BIRTH_RE.match(value or ""))
 
 
-def age_from_birth_ym(birth_ym, today=None):
+def age_from_birth_ym(birth_ym: str, today: date | None = None) -> int | None:
     """从 YYYY-MM 计算整岁年龄;为空/非法/未来出生返回 None。"""
     m = BIRTH_RE.match((birth_ym or "").strip())
     if not m:
@@ -103,7 +103,9 @@ def _int_or_none(value):
 # ---------------------------------------------------------------------------
 # 人物
 # ---------------------------------------------------------------------------
-def list_persons(conn, q="", agency=None, gender=None, sort="heart", dir="", page=1, per_page=20):
+def list_persons(conn: sqlite3.Connection, q: str = "", agency: str | None = None,
+                 gender: str | None = None, sort: str = "heart", dir: str = "",
+                 page: int = 1, per_page: int = 20) -> tuple[list, int, int, int]:
     """返回 (rows, total, page, pages)。支持姓名/别名/假名模糊搜索、事务所/性别筛选、
     排序字段+方向(空值恒排最后:身高/年龄/罩杯)。"""
     sort = sort if sort in SORT_DEFAULT_DIR else "heart"
@@ -133,13 +135,13 @@ def list_persons(conn, q="", agency=None, gender=None, sort="heart", dir="", pag
     return rows, total, page, pages
 
 
-def get_person(conn, person_id):
+def get_person(conn: sqlite3.Connection, person_id: int) -> sqlite3.Row | None:
     return conn.execute(
         f"SELECT p.*,{_CURRENT_AGENCY_SQL} FROM persons p WHERE p.id = ?", (person_id,)
     ).fetchone()
 
 
-def person_agencies(conn, person_id):
+def person_agencies(conn: sqlite3.Connection, person_id: int) -> list:
     """事务所历史:现任(无结束年)在前。"""
     return conn.execute(
         "SELECT * FROM agency_history WHERE person_id = ?"
@@ -148,7 +150,7 @@ def person_agencies(conn, person_id):
     ).fetchall()
 
 
-def person_works(conn, person_id):
+def person_works(conn: sqlite3.Connection, person_id: int) -> list:
     """该人物出演/参与的全部作品与角色(排除不予收录)。"""
     return conn.execute(
         "SELECT w.*, c.id AS credit_id, c.role, c.character_name"
@@ -174,7 +176,8 @@ def _person_tuple(data):
     )
 
 
-def create_person(conn, data, agencies=None):
+def create_person(conn: sqlite3.Connection, data: dict,
+                  agencies: list[dict] | None = None) -> int:
     if not (data.get("name") or "").strip():
         raise ValueError("姓名必填")
     cur = conn.execute(
@@ -187,7 +190,8 @@ def create_person(conn, data, agencies=None):
     return cur.lastrowid
 
 
-def update_person(conn, person_id, data, agencies=None):
+def update_person(conn: sqlite3.Connection, person_id: int, data: dict,
+                  agencies: list[dict] | None = None) -> None:
     if not (data.get("name") or "").strip():
         raise ValueError("姓名必填")
     affected = _work_ids_of_person(conn, person_id)
@@ -221,7 +225,7 @@ def _replace_agencies(conn, person_id, agencies):
         )
 
 
-def delete_person(conn, person_id):
+def delete_person(conn: sqlite3.Connection, person_id: int) -> None:
     affected = _work_ids_of_person(conn, person_id)
     conn.execute("DELETE FROM persons WHERE id = ?", (person_id,))
     conn.commit()
@@ -229,7 +233,7 @@ def delete_person(conn, person_id):
         refresh_filename(conn, wid)
 
 
-def increment_heart(conn, person_id):
+def increment_heart(conn: sqlite3.Connection, person_id: int) -> int:
     """心动 +1,返回新值。"""
     cur = conn.execute(
         "UPDATE persons SET heart_count = heart_count + 1 WHERE id = ?", (person_id,)
@@ -242,7 +246,7 @@ def increment_heart(conn, person_id):
     ).fetchone()[0]
 
 
-def toggle_favorite(conn, person_id):
+def toggle_favorite(conn: sqlite3.Connection, person_id: int) -> int:
     """收藏/取消收藏,返回新状态。"""
     cur = conn.execute(
         "UPDATE persons SET is_favorite = 1 - is_favorite WHERE id = ?", (person_id,)
@@ -255,13 +259,13 @@ def toggle_favorite(conn, person_id):
     ).fetchone()[0]
 
 
-def favorite_persons(conn):
+def favorite_persons(conn: sqlite3.Connection) -> list:
     return conn.execute(
         "SELECT * FROM persons WHERE is_favorite = 1 ORDER BY heart_count DESC, id ASC"
     ).fetchall()
 
 
-def all_persons_brief(conn):
+def all_persons_brief(conn: sqlite3.Connection) -> list:
     """用于作品页的人物搜索候选(含别名,前端实时过滤)。"""
     return conn.execute(
         "SELECT id, name, kana, alias FROM persons ORDER BY name ASC, id ASC"
@@ -286,7 +290,9 @@ def normalize_code(code) -> str:
     return (code or "").strip().upper()
 
 
-def list_works(conn, q="", tag=None, status=None, exclude_rejected=False, page=1, per_page=20):
+def list_works(conn: sqlite3.Connection, q: str = "", tag: str | None = None,
+               status: str | None = None, exclude_rejected: bool = False,
+               page: int = 1, per_page: int = 20) -> tuple[list, int, int, int]:
     """返回 (rows, total, page, pages)。rows 附带 tags 串与阵容人数 cast_size。
     status: 按状态筛选;exclude_rejected: 排除不予收录(用于非 /works 页面)。"""
     where, params = [], []
@@ -315,11 +321,11 @@ def list_works(conn, q="", tag=None, status=None, exclude_rejected=False, page=1
     return rows, total, page, pages
 
 
-def get_work(conn, work_id):
+def get_work(conn: sqlite3.Connection, work_id: int) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM works WHERE id = ?", (work_id,)).fetchone()
 
 
-def work_tags(conn, work_id):
+def work_tags(conn: sqlite3.Connection, work_id: int) -> list[str]:
     return [r[0] for r in conn.execute(
         "SELECT tag FROM work_tags WHERE work_id = ? ORDER BY id ASC", (work_id,)
     ).fetchall()]
@@ -343,7 +349,7 @@ def _replace_tags(conn, work_id, tags):
         )
 
 
-def create_work(conn, data, tags_raw=""):
+def create_work(conn: sqlite3.Connection, data: dict, tags_raw: str = "") -> int:
     code = normalize_code(data.get("code"))
     if not code:
         raise ValueError("番号必填")
@@ -363,7 +369,7 @@ def create_work(conn, data, tags_raw=""):
     return cur.lastrowid
 
 
-def update_work(conn, work_id, data, tags_raw=""):
+def update_work(conn: sqlite3.Connection, work_id: int, data: dict, tags_raw: str = "") -> None:
     """更新作品(不含状态与文件名——前者仅在评审页改,后者按阵容自动派生)。"""
     code = normalize_code(data.get("code"))
     if not code:
@@ -383,7 +389,7 @@ def update_work(conn, work_id, data, tags_raw=""):
     conn.commit()
 
 
-def set_work_status(conn, work_id, status):
+def set_work_status(conn: sqlite3.Connection, work_id: int, status: str) -> None:
     """更改作品状态(仅评审页调用);非法状态抛 ValueError。"""
     status = (status or "").strip()
     if status not in WORK_STATUSES:
@@ -394,7 +400,7 @@ def set_work_status(conn, work_id, status):
     conn.commit()
 
 
-def review_list(conn):
+def review_list(conn: sqlite3.Connection) -> list:
     """全部评审中的作品(按录入先后排队)。"""
     return conn.execute(
         f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
@@ -403,7 +409,7 @@ def review_list(conn):
     ).fetchall()
 
 
-def judged_works(conn):
+def judged_works(conn: sqlite3.Connection) -> list:
     """已判定(已收录/不予收录)的作品,新判定的在前。"""
     return conn.execute(
         f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
@@ -443,7 +449,7 @@ def delete_work(conn, work_id):
     conn.commit()
 
 
-def all_tags(conn):
+def all_tags(conn: sqlite3.Connection) -> list:
     """标签云: [(tag, cnt)],按出现次数降序;排除不予收录作品的标签。"""
     return conn.execute(
         "SELECT wt.tag, COUNT(*) AS cnt FROM work_tags wt"
@@ -456,7 +462,7 @@ def all_tags(conn):
 # ---------------------------------------------------------------------------
 # 阵容关联(人物 <-> 作品)
 # ---------------------------------------------------------------------------
-def work_credits(conn, work_id):
+def work_credits(conn: sqlite3.Connection, work_id: int) -> list:
     """作品全阵容。"""
     return conn.execute(
         "SELECT c.id, c.role, c.character_name, p.id AS person_id, p.name AS person_name,"
@@ -467,7 +473,8 @@ def work_credits(conn, work_id):
     ).fetchall()
 
 
-def add_credit(conn, work_id, person_id, role="", character_name=""):
+def add_credit(conn: sqlite3.Connection, work_id: int, person_id: int,
+               role: str = "", character_name: str = "") -> tuple[int | None, str]:
     """添加阵容,返回 (credit_id, err)。同一人物同一关系类型不可重复。"""
     role = (role or "").strip() or "出演"
     try:
@@ -482,7 +489,7 @@ def add_credit(conn, work_id, person_id, role="", character_name=""):
     return cur.lastrowid, ""
 
 
-def remove_credit(conn, credit_id):
+def remove_credit(conn: sqlite3.Connection, credit_id: int) -> None:
     row = conn.execute(
         "SELECT work_id FROM credits WHERE id = ?", (credit_id,)
     ).fetchone()
@@ -495,7 +502,7 @@ def remove_credit(conn, credit_id):
 # ---------------------------------------------------------------------------
 # 统计与今日心动
 # ---------------------------------------------------------------------------
-def dashboard_stats(conn):
+def dashboard_stats(conn: sqlite3.Connection) -> dict:
     def one(sql):
         return conn.execute(sql).fetchone()[0]
 
@@ -513,13 +520,13 @@ def dashboard_stats(conn):
     }
 
 
-def top_persons(conn, limit=5):
+def top_persons(conn: sqlite3.Connection, limit: int = 5) -> list:
     return conn.execute(
         "SELECT * FROM persons ORDER BY heart_count DESC, id ASC LIMIT ?", (limit,)
     ).fetchall()
 
 
-def today_heart(conn):
+def today_heart(conn: sqlite3.Connection) -> sqlite3.Row | None:
     """今日心动:按心动指数加权随机,当天内确定(种子=日期),次日重抽。"""
     rows = conn.execute("SELECT * FROM persons").fetchall()
     if not rows:
@@ -529,3 +536,8 @@ def today_heart(conn):
     if sum(weights) > 0:
         return rnd.choices(rows, weights=weights, k=1)[0]
     return rnd.choice(rows)
+
+
+def pending_review_count(conn) -> int:
+    """待审数量(导航角标与评审页的唯一来源)。"""
+    return conn.execute("SELECT COUNT(*) FROM works WHERE status = '评审中'").fetchone()[0]
