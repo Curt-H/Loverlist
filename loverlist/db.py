@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS works (
     code       TEXT    NOT NULL UNIQUE,        -- 番号(必填唯一,大写归一)
     title      TEXT    NOT NULL DEFAULT '',    -- 标题
     filename   TEXT    NOT NULL DEFAULT '',    -- 文件名(预留字段)
-    status     TEXT    NOT NULL DEFAULT '',    -- 状态(预留字段)
+    status     TEXT    NOT NULL DEFAULT '评审中', -- 状态:评审中/已收录/不予收录
     notes      TEXT    NOT NULL DEFAULT '',    -- 备注
     created_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
@@ -86,9 +86,11 @@ def get_connection(db_path=None) -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    """建表(幂等);老库自动补新增列(轻量迁移)。"""
+    """建表(幂等);老库自动补新增列(轻量迁移)与状态值归一。"""
     conn.executescript(SCHEMA)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(persons)")}
     if "avatar" not in cols:
         conn.execute("ALTER TABLE persons ADD COLUMN avatar TEXT NOT NULL DEFAULT ''")
+    # 历史数据迁移:老库空状态视为已收录(新作品由服务层默认写入「评审中」,不受影响)
+    conn.execute("UPDATE works SET status = '已收录' WHERE status = ''")
     conn.commit()

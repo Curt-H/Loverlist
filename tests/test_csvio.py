@@ -107,5 +107,28 @@ class RoundTripTests(unittest.TestCase):
         self.assertEqual(services.work_tags(self.conn, new_wid), ["恋爱"])
 
 
+    def test_status_import_normalization(self):
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(csvio.WORK_HEADERS)
+        w.writerow(["LOV-010", "原样已收录", "恋爱", "", "已收录", ""])
+        w.writerow(["LOV-011", "未知归评审", "剧情", "", "随便写的", ""])
+        w.writerow(["LOV-012", "空归评审", "", "", "", ""])
+        w.writerow(["LOV-001", "更新并改状态", "", "", "已收录", ""])
+        buf.seek(0)
+        stats = csvio.import_csv(self.conn, "works", buf)
+        self.assertEqual((stats["created"], stats["updated"], stats["skipped"]), (3, 1, 0))
+
+        def status_of(code):
+            return self.conn.execute(
+                "SELECT status FROM works WHERE code = ?", (code,)
+            ).fetchone()["status"]
+
+        self.assertEqual(status_of("LOV-010"), "已收录")
+        self.assertEqual(status_of("LOV-011"), "评审中")
+        self.assertEqual(status_of("LOV-012"), "评审中")
+        self.assertEqual(status_of("LOV-001"), "已收录")
+
+
 if __name__ == "__main__":
     unittest.main()

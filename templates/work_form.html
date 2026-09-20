@@ -20,7 +20,6 @@
       <input name="tags" value="{{ tags_raw }}" placeholder="恋爱,青春,治愈">
     </label>
     <label>文件名 <span class="hint">(预留字段)</span><input name="filename" value="{{ work.filename if work else '' }}"></label>
-    <label>状态 <span class="hint">(预留字段)</span><input name="status" value="{{ work.status if work else '' }}"></label>
   </div>
   <label>备注<textarea name="notes" rows="2">{{ work.notes if work else '' }}</textarea></label>
 

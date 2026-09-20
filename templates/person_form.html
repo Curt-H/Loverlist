@@ -9,7 +9,7 @@
 <form class="form" method="post" action="{{ url_for('loverlist.person_update', pid=person.id) if person else url_for('loverlist.person_create') }}">
   <div class="grid">
     <label>姓名 *<input name="name" required value="{{ person.name if person else '' }}"></label>
-    <label>别名<input name="alias" value="{{ person.alias if person else '' }}"></label>
+    <label>别名 <span class="hint">(可多个,用 、/,/; 分隔)</span><input name="alias" value="{{ person.alias if person else '' }}"></label>
     <label>假名(日文)<input name="kana" value="{{ person.kana if person else '' }}"></label>
     <label>性别
       <select name="gender">

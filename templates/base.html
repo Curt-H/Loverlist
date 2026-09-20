@@ -14,6 +14,7 @@
     <a href="{{ url_for('loverlist.persons') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('loverlist.person') }}">人物</a>
     <a href="{{ url_for('loverlist.works') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('loverlist.work') or request.endpoint == 'loverlist.credit_delete' }}">作品</a>
     <a href="{{ url_for('loverlist.favorites') }}" class="{{ 'active' if request.endpoint == 'loverlist.favorites' }}">心动向</a>
+    <a href="{{ url_for('loverlist.review_page') }}" class="{{ 'active' if request.endpoint == 'loverlist.review_page' }}">评审{% if review_count %} <span class="nav-badge">{{ review_count }}</span>{% endif %}</a>
     <a href="{{ url_for('loverlist.data_page') }}" class="{{ 'active' if request.endpoint == 'loverlist.data_page' }}">数据</a>
   </nav>
 </header>

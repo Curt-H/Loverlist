@@ -24,9 +24,13 @@
   <div>
     <h1>{{ person.name }}{% if person.is_favorite %} <span class="star">★</span>{% endif %}</h1>
     <p class="muted">
-      {% if person.alias %}别名:{{ person.alias }}&nbsp;&nbsp;{% endif %}
       {% if person.kana %}假名:{{ person.kana }}{% endif %}
     </p>
+    {% if person.alias %}
+    <div class="chips">
+      {% for a in person.alias.split('、') %}<span class="chip">{{ a }}</span>{% endfor %}
+    </div>
+    {% endif %}
   </div>
   <div class="detail-actions">
     {{ heart_btn(person) }}
@@ -42,6 +46,7 @@
   <dl class="props">
     <dt>性别</dt><dd>{{ person.gender or '—' }}</dd>
     <dt>出生年月</dt><dd>{{ person.birth_ym or '—' }}</dd>
+    <dt>年龄</dt><dd>{% set a = person.birth_ym | age %}{{ (a ~ ' 岁') if a is not none else '—' }}</dd>
     <dt>身高</dt><dd>{{ (person.height ~ ' cm') if person.height else '—' }}</dd>
     <dt>三围</dt><dd>{{ bwh(person) }}</dd>
     <dt>罩杯</dt><dd>{{ person.cup or '—' }}</dd>

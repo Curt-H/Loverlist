@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}评审{% endblock %}
+{% block content %}
+<h1>作品评审 <span class="muted small">(作品状态只能在本页更改)</span></h1>
+
+<div class="card">
+  <h2>待评审({{ pending|length }})</h2>
+  {% if pending %}
+  <table class="table">
+    <thead><tr><th>番号</th><th>标题</th><th>风格TAG</th><th>出演人数</th><th>录入时间</th><th>判定</th></tr></thead>
+    <tbody>
+    {% for w in pending %}
+      <tr>
+        <td><a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
+        <td>{{ w.title or '—' }}</td>
+        <td class="muted">{{ w.tags or '—' }}</td>
+        <td>{{ w.cast_size }}</td>
+        <td class="muted">{{ w.created_at }}</td>
+        <td class="nowrap actions">
+          <form class="inline" method="post" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+            <input type="hidden" name="status" value="已收录">
+            <button class="btn btn-small btn-ok" type="submit">✓ 已收录</button>
+          </form>
+          <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为不予收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+            <input type="hidden" name="status" value="不予收录">
+            <button class="btn btn-small btn-danger" type="submit">✗ 不予收录</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">没有待评审的作品,全部处理完毕 🎉</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>已判定({{ judged|length }})</h2>
+  {% if judged %}
+  <table class="table">
+    <thead><tr><th>状态</th><th>番号</th><th>标题</th><th>录入时间</th><th></th></tr></thead>
+    <tbody>
+    {% for w in judged %}
+      <tr>
+        <td>{{ status_badge(w.status) }}</td>
+        <td><a href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
+        <td>{{ w.title or '—' }}</td>
+        <td class="muted">{{ w.created_at }}</td>
+        <td>
+          <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」退回评审?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+            <input type="hidden" name="status" value="评审中">
+            <button class="btn btn-small" type="submit">退回评审</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">还没有判定记录。</p>
+  {% endif %}
+</div>
+{% endblock %}

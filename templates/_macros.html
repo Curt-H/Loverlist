@@ -39,3 +39,8 @@ B{{ p.bust or '–' }}-W{{ p.waist or '–' }}-H{{ p.hip or '–' }}
 <span class="{{ cls }} avatar-ph">{{ p.name[:1] }}</span>
 {%- endif -%}
 {%- endmacro %}
+
+{% macro status_badge(status) -%}
+{%- set cls = {'评审中': 'st-review', '已收录': 'st-ok', '不予收录': 'st-reject'}.get(status, 'st-review') -%}
+<span class="status-badge {{ cls }}">{{ status }}</span>
+{%- endmacro %}

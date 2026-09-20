@@ -18,7 +18,12 @@
     <option value="heart" {{ 'selected' if sort == 'heart' }}>按心动指数</option>
     <option value="name" {{ 'selected' if sort == 'name' }}>按姓名</option>
     <option value="height" {{ 'selected' if sort == 'height' }}>按身高</option>
-    <option value="birth" {{ 'selected' if sort == 'birth' }}>按出生年月</option>
+    <option value="birth" {{ 'selected' if sort == 'birth' }}>按年龄</option>
+    <option value="cup" {{ 'selected' if sort == 'cup' }}>按罩杯</option>
+  </select>
+  <select name="dir">
+    <option value="asc" {{ 'selected' if dir == 'asc' }}>升序</option>
+    <option value="desc" {{ 'selected' if dir == 'desc' }}>降序</option>
   </select>
   <button class="btn" type="submit">筛选</button>
   <a class="btn btn-ghost" href="{{ url_for('loverlist.persons') }}">重置</a>
@@ -27,7 +32,7 @@
 <table class="table">
   <thead>
     <tr>
-      <th></th><th>姓名</th><th>别名 / 假名</th><th>出生</th><th>身高</th><th>三围</th>
+      <th></th><th>姓名</th><th>年龄</th><th>身高</th><th>三围</th>
       <th>罩杯</th><th>事务所</th><th>心动</th><th></th><th></th>
     </tr>
   </thead>
@@ -36,8 +41,7 @@
     <tr>
       <td class="nowrap">{{ avatar(p) }}</td>
       <td><a class="strong" href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a>{% if p.is_favorite %} <span class="star">★</span>{% endif %}</td>
-      <td class="muted">{{ p.alias }}{% if p.alias and p.kana %} / {% endif %}{{ p.kana }}</td>
-      <td>{{ p.birth_ym or '—' }}</td>
+      <td>{% set a = p.birth_ym | age %}{{ (a ~ '岁') if a is not none else '—' }}</td>
       <td>{{ (p.height ~ 'cm') if p.height else '—' }}</td>
       <td>{{ bwh(p) }}</td>
       <td>{{ p.cup or '—' }}</td>
@@ -52,9 +56,9 @@
       </td>
     </tr>
   {% else %}
-    <tr><td colspan="11" class="empty">还没有人物,点右上角「+ 新建人物」开始吧。</td></tr>
+    <tr><td colspan="10" class="empty">还没有人物,点右上角「+ 新建人物」开始吧。</td></tr>
   {% endfor %}
   </tbody>
 </table>
-{{ paginate(page, pages, total, {'q': q, 'agency': agency, 'gender': gender, 'sort': sort}) }}
+{{ paginate(page, pages, total, {'q': q, 'agency': agency, 'gender': gender, 'sort': sort, 'dir': dir}) }}
 {% endblock %}

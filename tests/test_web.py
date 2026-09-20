@@ -215,6 +215,52 @@ class WebTests(unittest.TestCase):
         r = self.client.get("/works", query_string={"tag": "标签01"})
         self.assertNotIn(b"tag-cloud collapsed", r.data)
 
+    def test_review_page_flow(self):
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001", "title": "待审"})
+        # 导航角标:待审 1
+        self.assertIn(b"nav-badge", self.client.get("/works").data)
+        r = self.client.get("/review")
+        self.assertIn("待评审".encode("utf-8"), r.data)
+        self.assertIn(b"LOV-001", r.data)
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works WHERE code = 'LOV-001'").fetchone()[0]
+        finally:
+            conn.close()
+        # 标记已收录 → 移入已判定,待审清零
+        r = self.client.post(f"/works/{wid}/status", data={"status": "已收录"}, follow_redirects=True)
+        self.assertIn("状态已更新".encode("utf-8"), r.data)
+        r = self.client.get("/review")
+        self.assertNotIn(b"nav-badge", r.data)
+        self.assertIn("已判定".encode("utf-8"), r.data)
+        # /works 状态筛选
+        r = self.client.get("/works", query_string={"status": "已收录"})
+        self.assertIn(b"LOV-001", r.data)
+        r = self.client.get("/works", query_string={"status": "评审中"})
+        self.assertNotIn(b"LOV-001", r.data)
+        # 退回评审 + 非法状态被拒
+        self.client.post(f"/works/{wid}/status", data={"status": "评审中"})
+        self.assertIn(b"LOV-001", self.client.get("/review").data)
+        r = self.client.post(f"/works/{wid}/status", data={"status": "xx"}, follow_redirects=True)
+        self.assertIn("未知的状态值".encode("utf-8"), r.data)
+
+    def test_persons_page_age_and_alias_chips(self):
+        self.client.post("/persons", data={"name": "ひなた", "alias": "ひな,太阳", "birth_ym": "1998-04"})
+        r = self.client.get("/persons")
+        html = r.data
+        self.assertNotIn("<th>别名 / 假名</th>".encode("utf-8"), html)   # 列表不再展示别名/假名列
+        self.assertIn("年龄".encode("utf-8"), html)
+        self.assertIn("岁".encode("utf-8"), html)
+        # 详情页:别名以标签列表展示,并有年龄行
+        r = self.client.get("/persons/1")
+        self.assertIn('<span class="chip">ひな</span>'.encode("utf-8"), r.data)
+        self.assertIn('<span class="chip">太阳</span>'.encode("utf-8"), r.data)
+        self.assertIn("年龄".encode("utf-8"), r.data)
+        # 表单不再有状态字段;新建作品默认进入评审页
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
+        self.assertNotIn(b'name="status"', self.client.get("/works/new").data)
+        self.assertIn(b"LOV-001", self.client.get("/review").data)
+
     def test_favorites_page(self):
         r = self.client.get("/favorites")
         self.assertEqual(r.status_code, 200)

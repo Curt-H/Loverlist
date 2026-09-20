@@ -8,16 +8,24 @@ from datetime import date
 # ---------------------------------------------------------------------------
 # 常量与软校验
 # ---------------------------------------------------------------------------
-BIRTH_RE = re.compile(r"^\d{4}-\d{2}$")        # 出生年月 YYYY-MM
+BIRTH_RE = re.compile(r"^(\d{4})-(\d{2})$")    # 出生年月 YYYY-MM(带捕获组供年龄计算)
 
 ROLE_CHOICES = ["出演", "主演", "配角", "客串", "导演", "编剧", "配音", "制作"]
 
-SORT_OPTIONS = {
-    "heart":  "p.heart_count DESC, p.id DESC",
-    "name":   "p.name ASC, p.id ASC",
-    "height": "p.height DESC, p.id DESC",
-    "birth":  "p.birth_ym DESC, p.id DESC",
+SORT_DEFAULT_DIR = {
+    "heart": "DESC",   # 心动降序
+    "name": "ASC",     # 姓名升序
+    "height": "DESC",  # 身高降序
+    "birth": "DESC",   # 年龄降序(年长在前)
+    "cup": "DESC",     # 罩杯降序(大罩杯在前)
 }
+
+WORK_STATUSES = ("评审中", "已收录", "不予收录")
+STATUS_DEFAULT = "评审中"    # 新建作品的初始状态
+STATUS_LEGACY = "已收录"     # 存量空状态归入值
+
+WORK_TAGS_SQL = "(SELECT GROUP_CONCAT(wt.tag, ',') FROM work_tags wt WHERE wt.work_id = w.id) AS tags"
+WORK_CAST_SQL = "(SELECT COUNT(*) FROM credits c WHERE c.work_id = w.id) AS cast_size"
 
 # 当前事务所子查询:无结束年(至今)优先,否则取最近一段
 _CURRENT_AGENCY_SQL = (
@@ -30,6 +38,45 @@ _CURRENT_AGENCY_SQL = (
 
 def check_birth_ym(value) -> bool:
     return bool(BIRTH_RE.match(value or ""))
+
+
+def age_from_birth_ym(birth_ym, today=None):
+    """从 YYYY-MM 计算整岁年龄;为空/非法/未来出生返回 None。"""
+    m = BIRTH_RE.match((birth_ym or "").strip())
+    if not m:
+        return None
+    today = today or date.today()
+    by, bm = int(m.group(1)), int(m.group(2))
+    age = today.year - by - (1 if today.month < bm else 0)
+    return age if age >= 0 else None
+
+
+def normalize_alias(raw) -> str:
+    """多个别名:按中英文逗号/分号/顿号拆分、去空后用「、」归一存储。"""
+    parts = [p.strip() for p in re.split(r"[,，;；、]+", raw or "") if p.strip()]
+    return "、".join(parts)
+
+
+def normalize_status(value, default=STATUS_DEFAULT) -> str:
+    """作品状态归一:仅接受三值,其余(含空)归为默认值。"""
+    v = (value or "").strip()
+    return v if v in WORK_STATUSES else default
+
+
+def _person_order(sort, dir_):
+    """人物列表排序:白名单字段 + 方向;身高/年龄/罩杯的空值恒排最后。"""
+    dir_ = "DESC" if str(dir_ or "").upper() == "DESC" else "ASC"
+    if sort == "name":
+        return f"p.name {dir_}, p.id ASC"
+    if sort == "height":
+        return f"p.height IS NULL ASC, p.height {dir_}, p.id DESC"
+    if sort == "birth":
+        # 年龄降序(年长在前)= 出生年月升序,与所选方向相反
+        d = "ASC" if dir_ == "DESC" else "DESC"
+        return f"p.birth_ym = '' ASC, p.birth_ym {d}, p.id DESC"
+    if sort == "cup":
+        return f"p.cup = '' ASC, p.cup {dir_}, p.id DESC"
+    return f"p.heart_count {dir_}, p.id DESC"
 
 
 def _int_or_none(value):
@@ -47,8 +94,11 @@ def _int_or_none(value):
 # ---------------------------------------------------------------------------
 # 人物
 # ---------------------------------------------------------------------------
-def list_persons(conn, q="", agency=None, gender=None, sort="heart", page=1, per_page=20):
-    """返回 (rows, total, page, pages)。支持姓名/别名/假名模糊搜索、事务所/性别筛选。"""
+def list_persons(conn, q="", agency=None, gender=None, sort="heart", dir="", page=1, per_page=20):
+    """返回 (rows, total, page, pages)。支持姓名/别名/假名模糊搜索、事务所/性别筛选、
+    排序字段+方向(空值恒排最后:身高/年龄/罩杯)。"""
+    sort = sort if sort in SORT_DEFAULT_DIR else "heart"
+    dir_ = dir or SORT_DEFAULT_DIR[sort]
     where, params = [], []
     if q:
         like = f"%{q.strip()}%"
@@ -61,7 +111,7 @@ def list_persons(conn, q="", agency=None, gender=None, sort="heart", page=1, per
         where.append("p.gender = ?")
         params.append(gender)
     where_sql = (" WHERE " + " AND ".join(where)) if where else ""
-    order_sql = SORT_OPTIONS.get(sort, SORT_OPTIONS["heart"])
+    order_sql = _person_order(sort, dir_)
 
     total = conn.execute(f"SELECT COUNT(*) FROM persons p{where_sql}", params).fetchone()[0]
     pages = max(1, math.ceil(total / per_page))
@@ -90,11 +140,11 @@ def person_agencies(conn, person_id):
 
 
 def person_works(conn, person_id):
-    """该人物出演/参与的全部作品与角色。"""
+    """该人物出演/参与的全部作品与角色(排除不予收录)。"""
     return conn.execute(
         "SELECT w.*, c.id AS credit_id, c.role, c.character_name"
         " FROM credits c JOIN works w ON w.id = c.work_id"
-        " WHERE c.person_id = ? ORDER BY w.code ASC",
+        " WHERE c.person_id = ? AND w.status != '不予收录' ORDER BY w.code ASC",
         (person_id,),
     ).fetchall()
 
@@ -102,7 +152,7 @@ def person_works(conn, person_id):
 def _person_tuple(data):
     return (
         (data.get("name") or "").strip(),
-        (data.get("alias") or "").strip(),
+        normalize_alias(data.get("alias")),
         (data.get("kana") or "").strip(),
         (data.get("gender") or "").strip() or "女",
         (data.get("birth_ym") or "").strip(),
@@ -215,8 +265,9 @@ def normalize_code(code) -> str:
     return (code or "").strip().upper()
 
 
-def list_works(conn, q="", tag=None, page=1, per_page=20):
-    """返回 (rows, total, page, pages)。rows 附带 tags 串与阵容人数 cast_size。"""
+def list_works(conn, q="", tag=None, status=None, exclude_rejected=False, page=1, per_page=20):
+    """返回 (rows, total, page, pages)。rows 附带 tags 串与阵容人数 cast_size。
+    status: 按状态筛选;exclude_rejected: 排除不予收录(用于非 /works 页面)。"""
     where, params = [], []
     if q:
         like = f"%{q.strip()}%"
@@ -225,14 +276,17 @@ def list_works(conn, q="", tag=None, page=1, per_page=20):
     if tag:
         where.append("w.id IN (SELECT work_id FROM work_tags WHERE tag = ?)")
         params.append(tag.strip())
+    if status:
+        where.append("w.status = ?")
+        params.append(status.strip())
+    if exclude_rejected:
+        where.append("w.status != '不予收录'")
     where_sql = (" WHERE " + " AND ".join(where)) if where else ""
     total = conn.execute(f"SELECT COUNT(*) FROM works w{where_sql}", params).fetchone()[0]
     pages = max(1, math.ceil(total / per_page))
     page = min(max(1, int(page or 1)), pages)
     rows = conn.execute(
-        "SELECT w.*,"
-        " (SELECT GROUP_CONCAT(wt.tag, ',') FROM work_tags wt WHERE wt.work_id = w.id) AS tags,"
-        " (SELECT COUNT(*) FROM credits c WHERE c.work_id = w.id) AS cast_size"
+        f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
         f" FROM works w{where_sql}"
         " ORDER BY w.created_at DESC, w.id DESC LIMIT ? OFFSET ?",
         params + [per_page, (page - 1) * per_page],
@@ -278,7 +332,7 @@ def create_work(conn, data, tags_raw=""):
             code,
             (data.get("title") or "").strip(),
             (data.get("filename") or "").strip(),
-            (data.get("status") or "").strip(),
+            normalize_status(data.get("status")),
             (data.get("notes") or "").strip(),
         ),
     )
@@ -288,16 +342,16 @@ def create_work(conn, data, tags_raw=""):
 
 
 def update_work(conn, work_id, data, tags_raw=""):
+    """更新作品(不含状态——状态只能在评审页更改)。"""
     code = normalize_code(data.get("code"))
     if not code:
         raise ValueError("番号必填")
     conn.execute(
-        "UPDATE works SET code = ?, title = ?, filename = ?, status = ?, notes = ? WHERE id = ?",
+        "UPDATE works SET code = ?, title = ?, filename = ?, notes = ? WHERE id = ?",
         (
             code,
             (data.get("title") or "").strip(),
             (data.get("filename") or "").strip(),
-            (data.get("status") or "").strip(),
             (data.get("notes") or "").strip(),
             work_id,
         ),
@@ -306,15 +360,47 @@ def update_work(conn, work_id, data, tags_raw=""):
     conn.commit()
 
 
+def set_work_status(conn, work_id, status):
+    """更改作品状态(仅评审页调用);非法状态抛 ValueError。"""
+    status = (status or "").strip()
+    if status not in WORK_STATUSES:
+        raise ValueError("未知的状态值")
+    cur = conn.execute("UPDATE works SET status = ? WHERE id = ?", (status, work_id))
+    if cur.rowcount == 0:
+        raise LookupError(f"作品不存在: id={work_id}")
+    conn.commit()
+
+
+def review_list(conn):
+    """全部评审中的作品(按录入先后排队)。"""
+    return conn.execute(
+        f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
+        " FROM works w WHERE w.status = '评审中'"
+        " ORDER BY w.created_at ASC, w.id ASC"
+    ).fetchall()
+
+
+def judged_works(conn):
+    """已判定(已收录/不予收录)的作品,新判定的在前。"""
+    return conn.execute(
+        f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
+        " FROM works w WHERE w.status != '评审中'"
+        " ORDER BY w.created_at DESC, w.id DESC"
+    ).fetchall()
+
+
 def delete_work(conn, work_id):
     conn.execute("DELETE FROM works WHERE id = ?", (work_id,))
     conn.commit()
 
 
 def all_tags(conn):
-    """标签云: [(tag, cnt)],按出现次数降序。"""
+    """标签云: [(tag, cnt)],按出现次数降序;排除不予收录作品的标签。"""
     return conn.execute(
-        "SELECT tag, COUNT(*) AS cnt FROM work_tags GROUP BY tag ORDER BY cnt DESC, tag ASC"
+        "SELECT wt.tag, COUNT(*) AS cnt FROM work_tags wt"
+        " JOIN works w ON w.id = wt.work_id"
+        " WHERE w.status != '不予收录'"
+        " GROUP BY wt.tag ORDER BY cnt DESC, wt.tag ASC"
     ).fetchall()
 
 
@@ -360,8 +446,11 @@ def dashboard_stats(conn):
 
     return {
         "person_count": one("SELECT COUNT(*) FROM persons"),
-        "work_count": one("SELECT COUNT(*) FROM works"),
-        "tag_count": one("SELECT COUNT(DISTINCT tag) FROM work_tags"),
+        "work_count": one("SELECT COUNT(*) FROM works WHERE status != '不予收录'"),
+        "tag_count": one(
+            "SELECT COUNT(DISTINCT wt.tag) FROM work_tags wt"
+            " JOIN works w ON w.id = wt.work_id WHERE w.status != '不予收录'"
+        ),
         "total_hearts": one("SELECT COALESCE(SUM(heart_count), 0) FROM persons"),
     }
 

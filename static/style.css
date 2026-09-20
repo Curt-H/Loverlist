@@ -202,3 +202,13 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 /* ---- 标签云折叠(阈值20:全部+20个之后隐藏) ---- */
 .tag-cloud.collapsed .chip:nth-child(n+22) { display: none; }
 .tag-toggle { margin: -4px 0 12px; }
+
+/* ---- 作品状态徽章 / 评审 ---- */
+.status-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; white-space: nowrap; }
+.st-review { background: var(--warn-bg); color: var(--warn-fg); }
+.st-ok { background: var(--ok-bg); color: var(--ok-fg); }
+.st-reject { background: var(--err-bg); color: var(--err-fg); }
+.btn-ok { color: var(--ok-fg); border-color: #bfe3cc; }
+.btn-ok:hover { background: var(--ok-bg); border-color: #9fd4b3; }
+.nav-badge { display: inline-block; min-width: 17px; padding: 0 5px; border-radius: 999px; background: var(--pink); color: #fff; font-size: 11px; line-height: 17px; text-align: center; }
+.nav a.active .nav-badge { background: #fff; color: var(--pink); }

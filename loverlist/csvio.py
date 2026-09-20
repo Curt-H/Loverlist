@@ -153,11 +153,12 @@ def import_works(conn, text_stream):
         if not code:
             skipped += 1
             continue
+        status = services.normalize_status(_row_val(row, "状态"))
         data = {
             "code": code,
             "title": _row_val(row, "标题"),
             "filename": _row_val(row, "文件名"),
-            "status": _row_val(row, "状态"),
+            "status": status,
             "notes": _row_val(row, "备注"),
         }
         tags_raw = _row_val(row, "风格TAG")
@@ -166,6 +167,7 @@ def import_works(conn, text_stream):
         ).fetchone()
         if existing:
             services.update_work(conn, existing["id"], data, tags_raw)
+            services.set_work_status(conn, existing["id"], status)
             updated += 1
         else:
             services.create_work(conn, data, tags_raw)

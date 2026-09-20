@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import paginate %}
+{% from "_macros.html" import paginate, status_badge %}
 {% block title %}作品{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -22,6 +22,10 @@
 
 <form class="filter-bar" method="get">
   <input type="text" name="q" value="{{ q }}" placeholder="搜索 番号 / 标题">
+  <select name="status">
+    <option value="">全部状态</option>
+    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if status == s }}>{{ s }}</option>{% endfor %}
+  </select>
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
   <button class="btn" type="submit">搜索</button>
   <a class="btn btn-ghost" href="{{ url_for('loverlist.works') }}">重置</a>
@@ -35,7 +39,7 @@
       <td><a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
       <td>{{ w.title or '—' }}</td>
       <td class="muted">{{ w.tags or '—' }}</td>
-      <td>{{ w.status or '—' }}</td>
+      <td>{{ status_badge(w.status) }}</td>
       <td>{{ w.cast_size }}</td>
       <td class="nowrap actions">
         <a class="btn btn-small" href="{{ url_for('loverlist.work_edit', wid=w.id) }}">编辑</a>
@@ -49,5 +53,5 @@
   {% endfor %}
   </tbody>
 </table>
-{{ paginate(page, pages, total, {'q': q, 'tag': tag}) }}
+{{ paginate(page, pages, total, {'q': q, 'tag': tag, 'status': status}) }}
 {% endblock %}

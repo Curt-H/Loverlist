@@ -96,5 +96,41 @@ class PersonListTests(unittest.TestCase):
         self.assertEqual((page, rows[0]["name"]), (2, "C"))
 
 
+class PersonAgeAliasSortTests(unittest.TestCase):
+    def setUp(self):
+        make_conn(self)
+
+    def test_age_from_birth_ym(self):
+        from datetime import date
+        self.assertIsNone(services.age_from_birth_ym(""))
+        self.assertIsNone(services.age_from_birth_ym("abc"))
+        self.assertEqual(services.age_from_birth_ym("1990-06", today=date(2026, 9, 20)), 36)
+        self.assertEqual(services.age_from_birth_ym("1990-09", today=date(2026, 9, 20)), 36)
+        self.assertEqual(services.age_from_birth_ym("1990-10", today=date(2026, 9, 20)), 35)
+
+    def test_normalize_alias(self):
+        self.assertEqual(services.normalize_alias(" a,b;c、d ，e "), "a、b、c、d、e")
+        self.assertEqual(services.normalize_alias(""), "")
+        pid = services.create_person(self.conn, person_data(alias="ひな, 太阳"))
+        self.assertEqual(services.get_person(self.conn, pid)["alias"], "ひな、太阳")
+
+    def test_sort_cup_with_dir_and_empty_last(self):
+        services.create_person(self.conn, person_data(name="A", birth_ym="1990-01", cup="A"))
+        services.create_person(self.conn, person_data(name="F", birth_ym="1992-01", cup="F"))
+        services.create_person(self.conn, person_data(name="N", birth_ym="1994-01", cup=""))
+        rows, _, _, _ = services.list_persons(self.conn, sort="cup", dir="desc")
+        self.assertEqual([r["name"] for r in rows], ["F", "A", "N"])
+        rows, _, _, _ = services.list_persons(self.conn, sort="cup", dir="asc")
+        self.assertEqual([r["name"] for r in rows], ["A", "F", "N"])
+
+    def test_sort_birth_dir(self):
+        services.create_person(self.conn, person_data(name="老", birth_ym="1990-01"))
+        services.create_person(self.conn, person_data(name="少", birth_ym="2005-01"))
+        rows, _, _, _ = services.list_persons(self.conn, sort="birth", dir="desc")
+        self.assertEqual([r["name"] for r in rows], ["老", "少"])  # 年龄降序=年长在前
+        rows, _, _, _ = services.list_persons(self.conn, sort="birth", dir="asc")
+        self.assertEqual([r["name"] for r in rows], ["少", "老"])
+
+
 if __name__ == "__main__":
     unittest.main()

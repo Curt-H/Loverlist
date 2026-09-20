@@ -140,5 +140,58 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(services.today_heart(self.conn)["id"], pick["id"])  # 同日确定
 
 
+class WorkStatusTests(unittest.TestCase):
+    def setUp(self):
+        make_conn(self)
+
+    def test_create_default_status_review(self):
+        wid = services.create_work(self.conn, {"code": "LOV-001"})
+        self.assertEqual(services.get_work(self.conn, wid)["status"], "评审中")
+
+    def test_set_status_whitelist_and_missing(self):
+        wid = services.create_work(self.conn, {"code": "LOV-001"})
+        services.set_work_status(self.conn, wid, "已收录")
+        self.assertEqual(services.get_work(self.conn, wid)["status"], "已收录")
+        with self.assertRaises(ValueError):
+            services.set_work_status(self.conn, wid, "随便")
+        with self.assertRaises(LookupError):
+            services.set_work_status(self.conn, 999, "已收录")
+
+    def test_update_work_keeps_status(self):
+        wid = services.create_work(self.conn, {"code": "LOV-001", "status": "已收录"})
+        services.update_work(self.conn, wid, {"code": "LOV-001", "title": "改"}, "tag")
+        self.assertEqual(services.get_work(self.conn, wid)["status"], "已收录")
+        self.assertEqual(services.work_tags(self.conn, wid), ["tag"])
+
+    def test_rejected_hidden_outside_works_page(self):
+        p = services.create_person(self.conn, person_data(name="ひなた"))
+        w1 = services.create_work(self.conn, {"code": "LOV-001"})
+        w2 = services.create_work(self.conn, {"code": "LOV-002", "status": "不予收录"}, "悬疑")
+        services.add_credit(self.conn, w1, p, "出演", "")
+        services.add_credit(self.conn, w2, p, "出演", "")
+        # 人物相关作品:排除不予收录
+        self.assertEqual([w["code"] for w in services.person_works(self.conn, p)], ["LOV-001"])
+        # 标签云与统计:排除不予收录
+        self.assertEqual(services.all_tags(self.conn), [])
+        stats = services.dashboard_stats(self.conn)
+        self.assertEqual(stats["work_count"], 1)
+        self.assertEqual(stats["tag_count"], 0)
+        # 列表:全部可见;支持状态筛选与排除
+        rows, total, _, _ = services.list_works(self.conn)
+        self.assertEqual(total, 2)
+        rows, total, _, _ = services.list_works(self.conn, status="不予收录")
+        self.assertEqual([r["code"] for r in rows], ["LOV-002"])
+        rows, total, _, _ = services.list_works(self.conn, exclude_rejected=True)
+        self.assertEqual(total, 1)
+        # 评审队列与已判定
+        self.assertEqual([w["code"] for w in services.review_list(self.conn)], ["LOV-001"])
+        services.set_work_status(self.conn, w2, "评审中")
+        self.assertEqual(len(services.review_list(self.conn)), 2)
+        services.set_work_status(self.conn, w1, "已收录")
+        # w1 已收录进入已判定;被退回的 w2 仍在评审队列
+        self.assertEqual({w["code"] for w in services.judged_works(self.conn)}, {"LOV-001"})
+        self.assertEqual([w["code"] for w in services.review_list(self.conn)], ["LOV-002"])
+
+
 if __name__ == "__main__":
     unittest.main()

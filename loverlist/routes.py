@@ -68,7 +68,6 @@ def _work_data_from_form(code):
         "code": code,
         "title": request.form.get("title", ""),
         "filename": request.form.get("filename", ""),
-        "status": request.form.get("status", ""),
         "notes": request.form.get("notes", ""),
     }
 
@@ -89,7 +88,7 @@ def dashboard():
         stats=services.dashboard_stats(g.db),
         today=services.today_heart(g.db),
         top=services.top_persons(g.db, 5),
-        recent_works=services.list_works(g.db, page=1, per_page=5)[0],
+        recent_works=services.list_works(g.db, exclude_rejected=True, page=1, per_page=5)[0],
     )
 
 
@@ -102,13 +101,16 @@ def persons():
     agency = request.args.get("agency", "").strip()
     gender = request.args.get("gender", "").strip()
     sort = request.args.get("sort", "heart")
+    dir_ = request.args.get("dir", "").strip().lower()
+    if dir_ not in ("asc", "desc"):
+        dir_ = services.SORT_DEFAULT_DIR.get(sort, "DESC").lower()
     rows, total, page, pages = services.list_persons(
         g.db, q=q, agency=agency or None, gender=gender or None,
-        sort=sort, page=_page(),
+        sort=sort, dir=dir_, page=_page(),
     )
     return render_template(
         "persons.html", rows=rows, total=total, page=page, pages=pages,
-        q=q, agency=agency, gender=gender, sort=sort, genders=GENDERS,
+        q=q, agency=agency, gender=gender, sort=sort, dir=dir_, genders=GENDERS,
     )
 
 
@@ -199,10 +201,14 @@ def person_favorite(pid):
 def works():
     q = request.args.get("q", "").strip()
     tag = request.args.get("tag", "").strip()
-    rows, total, page, pages = services.list_works(g.db, q=q, tag=tag or None, page=_page())
+    status = request.args.get("status", "").strip()
+    rows, total, page, pages = services.list_works(
+        g.db, q=q, tag=tag or None, status=status or None, page=_page()
+    )
     return render_template(
         "works.html", rows=rows, total=total, page=page, pages=pages,
-        q=q, tag=tag, tags=services.all_tags(g.db),
+        q=q, tag=tag, status=status, statuses=services.WORK_STATUSES,
+        tags=services.all_tags(g.db),
     )
 
 
@@ -330,6 +336,33 @@ def favorites():
         top=services.top_persons(g.db, 20),
         favs=services.favorite_persons(g.db),
     )
+
+
+# ---------------------------------------------------------------------------
+# 评审(作品状态只能在此页更改)
+# ---------------------------------------------------------------------------
+@bp.get("/review")
+def review_page():
+    return render_template(
+        "review.html",
+        pending=services.review_list(g.db),
+        judged=services.judged_works(g.db),
+    )
+
+
+@bp.post("/works/<int:wid>/status")
+def work_set_status(wid):
+    work = services.get_work(g.db, wid)
+    if work is None:
+        abort(404)
+    status = request.form.get("status", "")
+    try:
+        services.set_work_status(g.db, wid, status)
+    except ValueError:
+        flash("未知的状态值", "error")
+    else:
+        flash(f"《{work['code']}》状态已更新为:{status}", "ok")
+    return redirect(url_for("loverlist.review_page"))
 
 
 # ---------------------------------------------------------------------------

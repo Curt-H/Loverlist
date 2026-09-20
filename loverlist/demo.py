@@ -72,7 +72,9 @@ def seed_demo(conn: sqlite3.Connection):
 
     code_to_id = {}
     for (code, title, tags) in _DEMO_WORKS:
-        wid = services.create_work(conn, {"code": code, "title": title}, ",".join(tags))
+        wid = services.create_work(
+            conn, {"code": code, "title": title, "status": "已收录"}, ",".join(tags)
+        )
         code_to_id[code] = wid
 
     n_credits = 0

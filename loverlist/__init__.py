@@ -3,6 +3,7 @@ from pathlib import Path
 
 from flask import Flask, g
 
+from . import services
 from .db import default_db_path, get_connection, init_db
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +37,18 @@ def create_app(db_path=None, avatar_dir=None):
         db = g.pop("db", None)
         if db is not None:
             db.close()
+
+    app.jinja_env.filters["age"] = services.age_from_birth_ym
+
+    @app.context_processor
+    def _inject_review_count():
+        try:
+            count = g.db.execute(
+                "SELECT COUNT(*) FROM works WHERE status = '评审中'"
+            ).fetchone()[0]
+        except Exception:
+            count = 0
+        return {"review_count": count}
 
     from .routes import bp
     app.register_blueprint(bp)
