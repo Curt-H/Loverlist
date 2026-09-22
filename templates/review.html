@@ -2,35 +2,34 @@
 {% from "_macros.html" import status_badge %}
 {% block title %}评审{% endblock %}
 {% block content %}
-<h1>作品评审 <span class="muted small">(作品状态只能在本页更改)</span></h1>
+{% set REVIEW_LIMIT = 10 %}
+<h1>作品评审 <span class="muted small">(作品状态只能在本页更改;最新加入的排在最前)</span></h1>
 
 <div class="card">
   <h2>待评审({{ pending|length }})</h2>
   {% if pending %}
-  <table class="table">
-    <thead><tr><th>番号</th><th>标题</th><th>风格TAG</th><th>出演人数</th><th>录入时间</th><th>判定</th></tr></thead>
-    <tbody>
+  <div class="review-list" id="pending-list">
     {% for w in pending %}
-      <tr>
-        <td><a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
-        <td>{{ w.title or '—' }}</td>
-        <td class="muted">{{ w.tags or '—' }}</td>
-        <td>{{ w.cast_size }}</td>
-        <td class="muted">{{ w.created_at }}</td>
-        <td class="nowrap actions">
-          <form class="inline" method="post" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
-            <input type="hidden" name="status" value="已收录">
-            <button class="btn btn-small btn-ok" type="submit">✓ 已收录</button>
-          </form>
-          <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为不予收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
-            <input type="hidden" name="status" value="不予收录">
-            <button class="btn btn-small btn-danger" type="submit">✗ 不予收录</button>
-          </form>
-        </td>
-      </tr>
+    <div class="review-row{{ ' hidden-extra' if loop.index > REVIEW_LIMIT }}">
+      <a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a>{% if w.is_vr %} <span class="vr-mark" title="VR作品">ᯅ</span>{% endif %}
+      <span class="review-title" title="{{ w.title }}">{{ w.title or '—' }}</span>
+      <span class="muted review-tags">{{ w.tags or '' }}</span>
+      <span class="nowrap actions">
+        <form class="inline" method="post" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+          <input type="hidden" name="status" value="已收录">
+          <button class="btn btn-small btn-ok" type="submit">✓ 已收录</button>
+        </form>
+        <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为不予收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+          <input type="hidden" name="status" value="不予收录">
+          <button class="btn btn-small btn-danger" type="submit">✗ 不予收录</button>
+        </form>
+      </span>
+    </div>
     {% endfor %}
-    </tbody>
-  </table>
+  </div>
+  {% if pending|length > REVIEW_LIMIT %}
+  <button class="btn btn-small btn-ghost review-toggle" type="button" data-target="pending-list" data-total="{{ pending|length }}">显示全部 {{ pending|length }} 条 ▾</button>
+  {% endif %}
   {% else %}
   <p class="empty">没有待评审的作品,全部处理完毕 🎉</p>
   {% endif %}
@@ -39,25 +38,24 @@
 <div class="card">
   <h2>已判定({{ judged|length }})</h2>
   {% if judged %}
-  <table class="table">
-    <thead><tr><th>状态</th><th>番号</th><th>标题</th><th>录入时间</th><th></th></tr></thead>
-    <tbody>
+  <div class="review-list" id="judged-list">
     {% for w in judged %}
-      <tr>
-        <td>{{ status_badge(w.status) }}</td>
-        <td><a href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a></td>
-        <td>{{ w.title or '—' }}</td>
-        <td class="muted">{{ w.created_at }}</td>
-        <td>
-          <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」退回评审?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
-            <input type="hidden" name="status" value="评审中">
-            <button class="btn btn-small" type="submit">退回评审</button>
-          </form>
-        </td>
-      </tr>
+    <div class="review-row{{ ' hidden-extra' if loop.index > REVIEW_LIMIT }}">
+      {{ status_badge(w.status) }}
+      <a href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a>{% if w.is_vr %} <span class="vr-mark" title="VR作品">ᯅ</span>{% endif %}
+      <span class="review-title" title="{{ w.title }}">{{ w.title or '—' }}</span>
+      <span class="nowrap actions">
+        <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」退回评审?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+          <input type="hidden" name="status" value="评审中">
+          <button class="btn btn-small" type="submit">退回评审</button>
+        </form>
+      </span>
+    </div>
     {% endfor %}
-    </tbody>
-  </table>
+  </div>
+  {% if judged|length > REVIEW_LIMIT %}
+  <button class="btn btn-small btn-ghost review-toggle" type="button" data-target="judged-list" data-total="{{ judged|length }}">显示全部 {{ judged|length }} 条 ▾</button>
+  {% endif %}
   {% else %}
   <p class="muted">还没有判定记录。</p>
   {% endif %}

@@ -60,6 +60,7 @@ a:hover { text-decoration: underline; }
 }
 .nav a:hover { background: var(--pink-light); text-decoration: none; }
 .nav a.active { background: var(--pink); color: #fff; }
+.nav-actions { display: flex; gap: 6px; margin-left: auto; align-items: center; }
 
 .container { max-width: 1120px; margin: 24px auto 60px; padding: 0 20px; }
 .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 18px 0 30px; }
@@ -264,3 +265,29 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 }
 .suggest-item { padding: 7px 12px; cursor: pointer; font-size: 14px; color: var(--ink); }
 .suggest-item:hover { background: var(--pink-light); }
+
+/* ---- 表单输入自动查重提示 ---- */
+.dup-hint { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; }
+.dup-hint.warn { color: var(--err-fg); }
+.dup-hint.warn a { color: var(--err-fg); }
+.dup-hint.ok { color: var(--ok-fg); }
+.dup-hint[hidden] { display: none; }
+
+/* ---- 人名旁的紧凑复制按钮 ---- */
+.copy-name { padding: 2px 7px; vertical-align: middle; }
+.rank-name { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+
+/* ---- 评审页紧凑行(限量折叠) ---- */
+.review-row { display: flex; align-items: center; gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--line); min-width: 0; }
+.review-row:last-child { border-bottom: none; }
+.review-row .review-title { flex: 0 1 auto; min-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-row .review-tags { flex: 0 1 auto; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-row .actions { margin-left: auto; }
+.review-list .hidden-extra { display: none; }
+.review-list.expanded .hidden-extra { display: flex; }
+
+/* ---- 仪表盘·今日评审 ---- */
+.review-group-title { font-weight: 600; margin: 2px 0 6px; }
+.review-picks { list-style: none; margin: 0; padding: 0; }
+.review-picks li { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; min-width: 0; }
+.review-picks .filename-text { flex: 1 1 auto; min-width: 0; max-width: none; }

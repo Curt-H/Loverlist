@@ -1,19 +1,20 @@
 {% extends "base.html" %}
-{% block title %}{{ '编辑作品' if work else '新建作品' }}{% endblock %}
+{% block title %}{{ '编辑作品' if work and work.id else '新建作品' }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>{{ ('编辑作品 · ' + work.code) if work else '新建作品' }}</h1>
-  <a class="btn btn-ghost" href="{{ url_for('loverlist.work_detail', wid=work.id) if work else url_for('loverlist.works') }}">返回</a>
+  <h1>{{ ('编辑作品 · ' + work.code) if work and work.id else '新建作品' }}</h1>
+  <a class="btn btn-ghost" href="{{ url_for('loverlist.work_detail', wid=work.id) if work and work.id else url_for('loverlist.works') }}">返回</a>
 </div>
 
-<form class="form" method="post" action="{{ url_for('loverlist.work_update', wid=work.id) if work else url_for('loverlist.work_create') }}">
+<form class="form" method="post" action="{{ url_for('loverlist.work_update', wid=work.id) if work and work.id else url_for('loverlist.work_create') }}" data-dup-url="{{ url_for('loverlist.work_dup_check') }}">
   <div class="grid">
     <label>番号 * <span class="hint">(英文-数字;数字不足3位自动补零,如 LOV + 7 → LOV-007)</span>
-      <span class="code-row">
-        <input name="code_alpha" required placeholder="LOV" value="{{ code_alpha }}">
+      <span class="code-row" id="work-code" data-exclude="{{ work.id if work and work.id else '' }}">
+        <input name="code_alpha" id="work-code-alpha" required placeholder="LOV" value="{{ code_alpha }}">
         <span class="code-dash">-</span>
-        <input name="code_num" required placeholder="007" value="{{ code_num }}">
+        <input name="code_num" id="work-code-num" required placeholder="007" value="{{ code_num }}">
       </span>
+      <span class="dup-hint" id="work-code-hint" hidden></span>
     </label>
     <label>标题<input name="title" value="{{ work.title if work else '' }}"></label>
     <label>风格TAG <span class="hint">(逗号分隔,如:恋爱,青春)</span>
@@ -28,7 +29,7 @@
 
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">保存</button>
-    <a class="btn btn-ghost" href="{{ url_for('loverlist.work_detail', wid=work.id) if work else url_for('loverlist.works') }}">取消</a>
+    <a class="btn btn-ghost" href="{{ url_for('loverlist.work_detail', wid=work.id) if work and work.id else url_for('loverlist.works') }}">取消</a>
   </div>
 </form>
 {% endblock %}

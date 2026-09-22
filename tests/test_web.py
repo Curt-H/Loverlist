@@ -85,8 +85,8 @@ class WebTests(unittest.TestCase):
             conn.close()
         r = self.client.get(f"/works/{wid}/edit")
         html = r.data.decode("utf-8")
-        self.assertIn('name="code_alpha" required placeholder="LOV" value="LOV"', html)
-        self.assertIn('name="code_num" required placeholder="007" value="007"', html)
+        self.assertIn('name="code_alpha" id="work-code-alpha" required placeholder="LOV" value="LOV"', html)
+        self.assertIn('name="code_num" id="work-code-num" required placeholder="007" value="007"', html)
 
     def test_duplicate_code_rejected(self):
         self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
@@ -296,6 +296,170 @@ class WebTests(unittest.TestCase):
         r = self.client.get("/favorites")
         self.assertEqual(r.status_code, 200)
         self.assertIn("心动榜".encode("utf-8"), r.data)
+
+    def test_duplicate_person_name_web(self):
+        self.client.post("/persons", data={"name": "ひなた"})
+        r = self.client.post(
+            "/persons", data={"name": "ひなた", "alias": "太阳", "kana": "ヒナタ"}
+        )
+        # 不重定向:原地重渲表单,给出错误并保留已填内容
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("已存在同名人物".encode("utf-8"), r.data)
+        self.assertIn('value="太阳"'.encode("utf-8"), r.data)
+        self.assertIn('value="ひなた"'.encode("utf-8"), r.data)
+        conn = get_connection(self.db_path)
+        try:
+            cnt = conn.execute("SELECT COUNT(*) FROM persons").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(cnt, 1)
+
+    def test_person_rename_conflict_web(self):
+        self.client.post("/persons", data={"name": "甲"})
+        self.client.post("/persons", data={"name": "乙"})
+        pid = self._first_person_id()
+        conn = get_connection(self.db_path)
+        try:
+            name = conn.execute("SELECT name FROM persons WHERE id = ?", (pid,)).fetchone()[0]
+        finally:
+            conn.close()
+        other = "甲" if name == "乙" else "乙"
+        r = self.client.post(f"/persons/{pid}", data={"name": other})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("已存在同名人物".encode("utf-8"), r.data)
+
+    def test_duplicate_work_code_web(self):
+        self.client.post("/works", data={"code_alpha": "lov", "code_num": "1"})
+        r = self.client.post(
+            "/works",
+            data={"code_alpha": "LOV", "code_num": "001", "title": "重复的作品", "tags": "恋爱"},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("番号 LOV-001 已存在".encode("utf-8"), r.data)
+        self.assertIn('value="重复的作品"'.encode("utf-8"), r.data)
+        self.assertIn('value="恋爱"'.encode("utf-8"), r.data)
+
+    def test_work_update_code_conflict_web(self):
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works WHERE code = 'LOV-002'").fetchone()[0]
+        finally:
+            conn.close()
+        r = self.client.post(f"/works/{wid}", data={"code_alpha": "LOV", "code_num": "001"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("番号 LOV-001 已存在".encode("utf-8"), r.data)
+
+    def test_person_dup_check_api(self):
+        self.client.post("/persons", data={"name": "ひなた"})
+        # 命中:返回重复标记与已有记录链接
+        d = self.client.get("/persons/dup-check", query_string={"q": "ひなた"}).get_json()
+        self.assertTrue(d["duplicate"])
+        self.assertIn("已存在同名人物", d["label"])
+        self.assertIn("/persons/", d["url"])
+        # 首尾空格不影响判定;未命中返回 duplicate=false
+        self.assertTrue(self.client.get(
+            "/persons/dup-check", query_string={"q": " ひなた "}).get_json()["duplicate"])
+        self.assertFalse(self.client.get(
+            "/persons/dup-check", query_string={"q": "存在しない"}).get_json()["duplicate"])
+        # 空姓名:不提示
+        self.assertFalse(self.client.get(
+            "/persons/dup-check", query_string={"q": ""}).get_json()["duplicate"])
+        # 编辑态排除自身
+        pid = self._first_person_id()
+        d = self.client.get(
+            "/persons/dup-check", query_string={"q": "ひなた", "exclude_id": str(pid)}
+        ).get_json()
+        self.assertFalse(d["duplicate"])
+
+    def test_work_dup_check_api(self):
+        self.client.post("/works", data={"code_alpha": "lov", "code_num": "1"})
+        # 小写/未补零输入同样命中(与提交时归一口径一致)
+        d = self.client.get(
+            "/works/dup-check", query_string={"alpha": "LOV", "num": "001"}
+        ).get_json()
+        self.assertTrue(d["duplicate"])
+        self.assertEqual(d["label"], "番号 LOV-001 已存在")
+        self.assertIn("/works/", d["url"])
+        # 未命中 / 段不完整:均返回 duplicate=false
+        self.assertFalse(self.client.get(
+            "/works/dup-check", query_string={"alpha": "LOV", "num": "002"}).get_json()["duplicate"])
+        self.assertFalse(self.client.get(
+            "/works/dup-check", query_string={"alpha": "", "num": "001"}).get_json()["duplicate"])
+        self.assertFalse(self.client.get(
+            "/works/dup-check", query_string={"alpha": "LOV", "num": "abc"}).get_json()["duplicate"])
+        # 编辑态排除自身
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works LIMIT 1").fetchone()[0]
+        finally:
+            conn.close()
+        d = self.client.get(
+            "/works/dup-check",
+            query_string={"alpha": "LOV", "num": "001", "exclude_id": str(wid)},
+        ).get_json()
+        self.assertFalse(d["duplicate"])
+
+    def test_nav_create_buttons_and_copy_name(self):
+        # 导航栏:全局可见的新建人物/新建作品入口
+        html = self.client.get("/").data.decode("utf-8")
+        self.assertIn('href="/persons/new"', html)
+        self.assertIn('href="/works/new"', html)
+        # 旧位置(列表页 page-head)不再保留新建按钮(空列表提示文字不受影响)
+        self.assertNotIn(
+            '<a class="btn btn-primary" href="/persons/new">',
+            self.client.get("/persons").data.decode("utf-8"),
+        )
+        self.assertNotIn(
+            '<a class="btn btn-primary" href="/works/new">',
+            self.client.get("/works").data.decode("utf-8"),
+        )
+        # /persons 与首页(今日心动 + Top5)的人名旁均有复制按钮
+        self.client.post("/persons", data={"name": "ひなた"})
+        html = self.client.get("/persons").data.decode("utf-8")
+        self.assertIn('class="btn btn-small btn-ghost js-copy copy-name"', html)
+        self.assertIn('data-copy="ひなた"', html)
+        html = self.client.get("/").data.decode("utf-8")
+        self.assertIn('data-copy="ひなた"', html)
+
+    def test_dashboard_today_review_card(self):
+        self.client.post("/persons", data={"name": "ひなた"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001", "is_vr": "1"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        conn = get_connection(self.db_path)
+        try:
+            pid = conn.execute("SELECT id FROM persons LIMIT 1").fetchone()[0]
+            wid = conn.execute("SELECT id FROM works WHERE code = 'LOV-001'").fetchone()[0]
+            services.add_credit(conn, wid, pid, "出演", "")
+        finally:
+            conn.close()
+        html = self.client.get("/").data.decode("utf-8")
+        self.assertIn("今日评审", html)
+        self.assertIn("LOV-001", html)
+        self.assertIn("LOV-002", html)
+        self.assertIn('data-copy="LOV-001@ひなた"', html)   # 文件名复制按钮
+        self.assertIn('data-copy="LOV-002"', html)
+
+    def test_review_page_compact_limited_newest_first_vr_mark(self):
+        for i in range(1, 12):
+            self.client.post(
+                "/works", data={"code_alpha": "LOV", "code_num": f"{i:03d}"},
+                follow_redirects=True,
+            )
+        self.client.post(
+            "/works", data={"code_alpha": "LOV", "code_num": "100", "is_vr": "1"},
+            follow_redirects=True,
+        )
+        html = self.client.get("/review").data.decode("utf-8")
+        # 最新加入的排在最前
+        self.assertLess(html.index("LOV-100"), html.index("LOV-001"))
+        # 限量:12 条待评审默认只展开 10 行,其余折叠 + 展开按钮
+        self.assertEqual(html.count('class="review-row'), 12)
+        self.assertEqual(html.count("hidden-extra"), 2)
+        self.assertIn("显示全部 12 条", html)
+        # VR 作品带 ᯅ 标记
+        self.assertIn("ᯅ", html)
 
 
 if __name__ == "__main__":

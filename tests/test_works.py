@@ -1,4 +1,3 @@
-import sqlite3
 import unittest
 
 from loverlist import services
@@ -48,8 +47,17 @@ class WorkTests(unittest.TestCase):
 
     def test_duplicate_code_rejected(self):
         services.create_work(self.conn, {"code": "LOV-001"})
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(ValueError):
             services.create_work(self.conn, {"code": "lov-001"})
+
+    def test_update_code_conflict_rejected(self):
+        services.create_work(self.conn, {"code": "LOV-001"})
+        wid = services.create_work(self.conn, {"code": "LOV-002"})
+        with self.assertRaises(ValueError):
+            services.update_work(self.conn, wid, {"code": "LOV-001"})
+        # 归一后与自己相同(lov-002 → LOV-002)不算冲突
+        services.update_work(self.conn, wid, {"code": "lov-002", "title": "新标题"})
+        self.assertEqual(services.get_work(self.conn, wid)["code"], "LOV-002")
 
     def test_update_replaces_tags(self):
         wid = services.create_work(self.conn, {"code": "LOV-001"}, "恋爱")
@@ -244,6 +252,44 @@ class WorkFilenameTests(unittest.TestCase):
         for c in list(credits):
             services.remove_credit(self.conn, c["id"])
         self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-009")
+
+
+class TodayReviewTests(unittest.TestCase):
+    def setUp(self):
+        make_conn(self)
+
+    def test_picks_pending_only_grouped_and_deterministic(self):
+        for i in range(1, 8):
+            services.create_work(self.conn, {"code": f"LOV-{i:03d}", "is_vr": "1" if i % 2 else ""})
+        # 已收录的作品不参与抽取
+        services.set_work_status(self.conn, 7, "已收录")
+        picks = services.today_review(self.conn, per_kind=3)
+        self.assertEqual(len(picks["vr"]), 3)
+        self.assertEqual(len(picks["normal"]), 3)
+        self.assertTrue(all(w["is_vr"] for w in picks["vr"]))
+        self.assertTrue(all(not w["is_vr"] for w in picks["normal"]))
+        codes = {w["code"] for group in picks.values() for w in group}
+        self.assertNotIn("LOV-007", codes)
+        # 同日两次调用结果一致(种子=日期)
+        again = services.today_review(self.conn, per_kind=3)
+        self.assertEqual(
+            [[w["code"] for w in picks["vr"]], [w["code"] for w in picks["normal"]]],
+            [[w["code"] for w in again["vr"]], [w["code"] for w in again["normal"]]],
+        )
+
+    def test_short_pool_returns_as_is(self):
+        services.create_work(self.conn, {"code": "LOV-001"})
+        picks = services.today_review(self.conn)
+        self.assertEqual(picks["vr"], [])
+        self.assertEqual([w["code"] for w in picks["normal"]], ["LOV-001"])
+
+    def test_review_list_newest_first(self):
+        for i in range(1, 4):
+            services.create_work(self.conn, {"code": f"LOV-{i:03d}"})
+        self.assertEqual(
+            [w["code"] for w in services.review_list(self.conn)],
+            ["LOV-003", "LOV-002", "LOV-001"],
+        )
 
 
 if __name__ == "__main__":

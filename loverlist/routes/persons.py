@@ -7,7 +7,7 @@ from flask import (abort, current_app, flash, g, jsonify, redirect,
 
 from .. import services
 from . import bp
-from .common import page_arg
+from .common import int_or_none, page_arg
 
 GENDERS = ["女", "男", "其他"]
 
@@ -71,14 +71,36 @@ def person_new():
     return render_template("person_form.html", person=None, agencies=[], genders=GENDERS)
 
 
+@bp.get("/persons/dup-check")
+def person_dup_check():
+    """输入时自动查重:姓名精确匹配;exclude_id 用于编辑态排除自身。"""
+    exclude = int_or_none(request.args.get("exclude_id"))
+    dup = services.find_person_by_name(g.db, request.args.get("q", ""), exclude_id=exclude)
+    if dup is None:
+        return jsonify({"duplicate": False, "url": None, "label": ""})
+    return jsonify({
+        "duplicate": True,
+        "url": url_for("loverlist.person_detail", pid=dup["id"]),
+        "label": f"已存在同名人物:{dup['name']}",
+    })
+
+
 @bp.post("/persons")
 def person_create():
     data = _person_data_from_form()
     if not (data["name"] or "").strip():
         flash("姓名必填", "error")
-        return redirect(url_for("loverlist.person_new"))
+        return render_template(
+            "person_form.html", person=data, agencies=_parse_agencies(), genders=GENDERS
+        )
     _warn_birth_ym(data)
-    pid = services.create_person(g.db, data, _parse_agencies())
+    try:
+        pid = services.create_person(g.db, data, _parse_agencies())
+    except ValueError as exc:  # 重名拦截:原地重渲表单,保留已填内容
+        flash(str(exc), "error")
+        return render_template(
+            "person_form.html", person=data, agencies=_parse_agencies(), genders=GENDERS
+        )
     flash(f"已添加人物:{data['name']}", "ok")
     return redirect(url_for("loverlist.person_detail", pid=pid))
 
@@ -113,9 +135,19 @@ def person_update(pid):
     data = _person_data_from_form()
     if not (data["name"] or "").strip():
         flash("姓名必填", "error")
-        return redirect(url_for("loverlist.person_edit", pid=pid))
+        return render_template(
+            "person_form.html", person={"id": pid, **data},
+            agencies=_parse_agencies(), genders=GENDERS,
+        )
     _warn_birth_ym(data)
-    services.update_person(g.db, pid, data, _parse_agencies())
+    try:
+        services.update_person(g.db, pid, data, _parse_agencies())
+    except ValueError as exc:  # 重名拦截:原地重渲表单,保留已填内容
+        flash(str(exc), "error")
+        return render_template(
+            "person_form.html", person={"id": pid, **data},
+            agencies=_parse_agencies(), genders=GENDERS,
+        )
     flash("已保存修改", "ok")
     return redirect(url_for("loverlist.person_detail", pid=pid))
 

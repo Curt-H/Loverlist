@@ -176,10 +176,27 @@ def _person_tuple(data):
     )
 
 
+def find_person_by_name(conn: sqlite3.Connection, name: str,
+                        exclude_id: int | None = None) -> sqlite3.Row | None:
+    """按姓名精确查找人物(去首尾空格);exclude_id 用于改名查重时排除自身。"""
+    name = (name or "").strip()
+    if not name:
+        return None
+    sql = "SELECT * FROM persons WHERE name = ?"
+    params: list = [name]
+    if exclude_id is not None:
+        sql += " AND id != ?"
+        params.append(exclude_id)
+    return conn.execute(sql + " ORDER BY id LIMIT 1", params).fetchone()
+
+
 def create_person(conn: sqlite3.Connection, data: dict,
                   agencies: list[dict] | None = None) -> int:
     if not (data.get("name") or "").strip():
         raise ValueError("姓名必填")
+    dup = find_person_by_name(conn, data.get("name"))
+    if dup is not None:
+        raise ValueError(f"已存在同名人物:{dup['name']}")
     cur = conn.execute(
         "INSERT INTO persons (name, alias, kana, gender, birth_ym, height, bust, waist, hip, cup, notes)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -194,6 +211,9 @@ def update_person(conn: sqlite3.Connection, person_id: int, data: dict,
                   agencies: list[dict] | None = None) -> None:
     if not (data.get("name") or "").strip():
         raise ValueError("姓名必填")
+    dup = find_person_by_name(conn, data.get("name"), exclude_id=person_id)
+    if dup is not None:
+        raise ValueError(f"已存在同名人物:{dup['name']}")
     affected = _work_ids_of_person(conn, person_id)
     conn.execute(
         "UPDATE persons SET name = ?, alias = ?, kana = ?, gender = ?, birth_ym = ?,"
@@ -290,6 +310,20 @@ def normalize_code(code) -> str:
     return (code or "").strip().upper()
 
 
+def find_work_by_code(conn: sqlite3.Connection, code: str,
+                      exclude_id: int | None = None) -> sqlite3.Row | None:
+    """按番号精确查找作品(去空格+大写归一);exclude_id 用于改番号查重时排除自身。"""
+    code = normalize_code(code)
+    if not code:
+        return None
+    sql = "SELECT * FROM works WHERE code = ?"
+    params: list = [code]
+    if exclude_id is not None:
+        sql += " AND id != ?"
+        params.append(exclude_id)
+    return conn.execute(sql + " LIMIT 1", params).fetchone()
+
+
 def list_works(conn: sqlite3.Connection, q: str = "", tag: str | None = None,
                status: str | None = None, exclude_rejected: bool = False,
                page: int = 1, per_page: int = 20) -> tuple[list, int, int, int]:
@@ -353,6 +387,9 @@ def create_work(conn: sqlite3.Connection, data: dict, tags_raw: str = "") -> int
     code = normalize_code(data.get("code"))
     if not code:
         raise ValueError("番号必填")
+    dup = find_work_by_code(conn, code)
+    if dup is not None:
+        raise ValueError(f"番号 {code} 已存在")
     cur = conn.execute(
         "INSERT INTO works (code, title, status, is_vr, notes) VALUES (?, ?, ?, ?, ?)",
         (
@@ -374,6 +411,9 @@ def update_work(conn: sqlite3.Connection, work_id: int, data: dict, tags_raw: st
     code = normalize_code(data.get("code"))
     if not code:
         raise ValueError("番号必填")
+    dup = find_work_by_code(conn, code, exclude_id=work_id)
+    if dup is not None:
+        raise ValueError(f"番号 {code} 已存在")
     conn.execute(
         "UPDATE works SET code = ?, title = ?, is_vr = ?, notes = ? WHERE id = ?",
         (
@@ -401,11 +441,11 @@ def set_work_status(conn: sqlite3.Connection, work_id: int, status: str) -> None
 
 
 def review_list(conn: sqlite3.Connection) -> list:
-    """全部评审中的作品(按录入先后排队)。"""
+    """全部评审中的作品(最新加入的排最前)。"""
     return conn.execute(
         f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
         " FROM works w WHERE w.status = '评审中'"
-        " ORDER BY w.created_at ASC, w.id ASC"
+        " ORDER BY w.created_at DESC, w.id DESC"
     ).fetchall()
 
 
@@ -536,6 +576,22 @@ def today_heart(conn: sqlite3.Connection) -> sqlite3.Row | None:
     if sum(weights) > 0:
         return rnd.choices(rows, weights=weights, k=1)[0]
     return rnd.choice(rows)
+
+
+def today_review(conn: sqlite3.Connection, per_kind: int = 3) -> dict:
+    """今日评审:仅从「评审中」作品按 VR / 非VR 分组随机抽取,当日固定(种子=日期),
+    次日重抽;每组最多 per_kind 条,不足如实返回。返回 {"vr": rows, "normal": rows}。"""
+    rows = conn.execute(
+        f"SELECT w.*, {WORK_TAGS_SQL}, {WORK_CAST_SQL}"
+        " FROM works w WHERE w.status = '评审中'"
+    ).fetchall()
+    rnd = random.Random(f"loverlist-review-{date.today()}")
+    vr = [r for r in rows if r["is_vr"]]
+    normal = [r for r in rows if not r["is_vr"]]
+    return {
+        "vr": rnd.sample(vr, min(per_kind, len(vr))),
+        "normal": rnd.sample(normal, min(per_kind, len(normal))),
+    }
 
 
 def pending_review_count(conn) -> int:

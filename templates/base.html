@@ -19,6 +19,10 @@
     <a href="{{ url_for('loverlist.review_page') }}" class="{{ 'active' if request.endpoint == 'loverlist.review_page' }}">评审{% if review_count %} <span class="nav-badge">{{ review_count }}</span>{% endif %}</a>
     <a href="{{ url_for('loverlist.data_page') }}" class="{{ 'active' if request.endpoint == 'loverlist.data_page' }}">数据</a>
   </nav>
+  <span class="nav-actions">
+    <a class="btn btn-small btn-primary" href="{{ url_for('loverlist.person_new') }}">＋ 人物</a>
+    <a class="btn btn-small btn-primary" href="{{ url_for('loverlist.work_new') }}">＋ 作品</a>
+  </span>
   <button type="button" class="theme-btn" id="theme-btn" title="切换白天/黑夜主题">🌙</button>
 </header>
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -198,6 +202,16 @@ if (tagToggle) {
   });
 }
 
+// ---- 评审页条目限量折叠 ----
+document.querySelectorAll('.review-toggle').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const list = document.getElementById(btn.dataset.target);
+    if (!list) return;
+    const expanded = list.classList.toggle('expanded');
+    btn.textContent = expanded ? '收起 ▴' : ('显示全部 ' + btn.dataset.total + ' 条 ▾');
+  });
+});
+
 // ---- 白天/黑夜主题切换(localStorage 记忆) ----
 const themeBtn = document.getElementById('theme-btn');
 if (themeBtn) {
@@ -257,6 +271,101 @@ if (personSearch) {
     if (!personSearch.contains(e.target) && !list.contains(e.target)) list.hidden = true;
   });
 }
+
+// ---- 表单输入自动查重(重复时禁用保存;服务端拦截仍是最终防线) ----
+function setupDupCheck(cfg) {
+  const fields = cfg.fields.map((id) => document.getElementById(id)).filter(Boolean);
+  const hint = document.getElementById(cfg.hint);
+  const form = fields.length ? fields[0].closest('form') : null;
+  const url = form ? (form.dataset.dupUrl || '') : '';
+  if (!fields.length || !url) return;
+  const saveBtn = form.querySelector('button[type="submit"]');
+  let dup = false;   // 最近一次查重结果(提交兜底用)
+  let timer = null;
+
+  const render = (data) => {
+    dup = !!data.duplicate;
+    if (hint) {
+      hint.hidden = false;
+      hint.className = 'dup-hint ' + (data.duplicate ? 'warn' : 'ok');
+      hint.textContent = '';
+      if (data.duplicate) {
+        hint.appendChild(document.createTextNode('⚠ ' + data.label + '('));
+        const a = document.createElement('a');
+        a.href = data.url;
+        a.textContent = '查看已有记录';
+        hint.appendChild(a);
+        hint.appendChild(document.createTextNode(')'));
+      } else {
+        hint.textContent = '✓ 未发现重复';
+      }
+    }
+    if (saveBtn) saveBtn.disabled = dup;
+  };
+  const reset = () => {
+    dup = false;
+    if (hint) hint.hidden = true;
+    if (saveBtn) saveBtn.disabled = false;
+  };
+  const busy = () => {
+    if (hint) { hint.hidden = false; hint.className = 'dup-hint'; hint.textContent = '查重中…'; }
+  };
+  const check = () => {
+    const q = cfg.query();
+    if (!q) { reset(); return; }
+    const sent = JSON.stringify(q);
+    fetch(url + '?' + new URLSearchParams(q))
+      .then((r) => r.json())
+      .then((data) => {
+        const now = cfg.query();
+        if (now && JSON.stringify(now) === sent) render(data);  // 竞态保护:输入未变才应用
+      })
+      .catch(() => {});
+  };
+  fields.forEach((f) => {
+    f.addEventListener('input', () => {
+      clearTimeout(timer);
+      if (!cfg.query()) { reset(); return; }
+      busy();
+      timer = setTimeout(check, 300);
+    });
+    f.addEventListener('blur', () => { clearTimeout(timer); check(); });
+  });
+  form.addEventListener('submit', (e) => {
+    if (dup) e.preventDefault();  // 兜底:正常路径下按钮已禁用
+  });
+}
+
+(function initDupCheck() {
+  const byId = (id) => document.getElementById(id);
+  const nameEl = byId('person-name');
+  if (nameEl) {
+    setupDupCheck({
+      fields: ['person-name'], hint: 'person-name-hint',
+      query: () => {
+        const v = nameEl.value.trim();
+        return v ? { q: v, exclude_id: nameEl.dataset.exclude || '' } : null;
+      },
+    });
+  }
+  const alphaEl = byId('work-code-alpha');
+  const numEl = byId('work-code-num');
+  if (alphaEl && numEl) {
+    const wrap = byId('work-code');
+    setupDupCheck({
+      fields: ['work-code-alpha', 'work-code-num'], hint: 'work-code-hint',
+      query: () => {
+        const alpha = alphaEl.value.trim().toUpperCase();
+        const digits = (numEl.value.match(/\d/g) || []).join('');
+        if (!alpha || !digits) return null;  // 番号未填完整:不提示
+        return {
+          alpha: alphaEl.value, num: numEl.value,
+          exclude_id: (wrap && wrap.dataset.exclude) || '',
+        };
+      },
+    });
+  }
+})();
 </script>
 </body>
 </html>
