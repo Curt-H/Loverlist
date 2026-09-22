@@ -12,6 +12,23 @@ class PersonTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             services.create_person(self.conn, person_data(name="  "))
 
+    def test_duplicate_name_rejected(self):
+        services.create_person(self.conn, person_data())
+        with self.assertRaises(ValueError):
+            services.create_person(self.conn, person_data(alias="另一个别名"))
+        # 首尾空格不影响重名判定
+        with self.assertRaises(ValueError):
+            services.create_person(self.conn, person_data(name=" 佐藤ひなた "))
+
+    def test_update_name_conflict_rejected(self):
+        services.create_person(self.conn, person_data(name="甲"))
+        pid_b = services.create_person(self.conn, person_data(name="乙"))
+        with self.assertRaises(ValueError):
+            services.update_person(self.conn, pid_b, person_data(name="甲"))
+        # 改回自己的名字(排除自身)不受影响
+        services.update_person(self.conn, pid_b, person_data(name="乙", alias="乙儿"))
+        self.assertEqual(services.get_person(self.conn, pid_b)["alias"], "乙儿")
+
     def test_create_with_agencies_and_current(self):
         agencies = [
             {"agency_name": "スターライン", "start_year": "2018", "end_year": ""},

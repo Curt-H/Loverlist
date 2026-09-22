@@ -1,7 +1,8 @@
 """作品相关页面与接口:列表/详情/增删改与阵容。"""
 import sqlite3
 
-from flask import abort, flash, g, redirect, render_template, request, url_for
+from flask import (abort, flash, g, jsonify, redirect, render_template, request,
+                   url_for)
 
 from .. import services
 from . import bp
@@ -17,8 +18,28 @@ def _work_data_from_form(code):
     }
 
 
+def _work_form_context(wid=None):
+    """校验/查重失败原地重渲表单时的回填上下文(从当前请求恢复已填内容)。"""
+    code_alpha = request.form.get("code_alpha", "")
+    code_num = request.form.get("code_num", "")
+    try:
+        code = services.build_code(code_alpha, code_num)
+    except ValueError:
+        code = ""
+    return {
+        "work": {
+            "id": wid, "code": code,
+            "title": request.form.get("title", ""),
+            "is_vr": request.form.get("is_vr", ""),
+            "notes": request.form.get("notes", ""),
+        },
+        "tags_raw": request.form.get("tags", ""),
+        "code_alpha": code_alpha, "code_num": code_num,
+    }
+
+
 def _save_work(wid=None):
-    """创建/更新作品:成功返回作品 id,失败返回 None(消息已 flash)。"""
+    """创建/更新作品:成功返回 (id, ""),失败返回 (None, 错误消息)(消息已 flash)。"""
     try:
         code = services.build_code(
             request.form.get("code_alpha", ""),
@@ -26,20 +47,24 @@ def _save_work(wid=None):
         )
     except ValueError as exc:
         flash(str(exc), "error")
-        return None
+        return None, str(exc)
     data = _work_data_from_form(code)
     tags_raw = request.form.get("tags", "")
     try:
         if wid is None:
             new_id = services.create_work(g.db, data, tags_raw)
             flash(f"已添加作品:{code}", "ok")
-            return new_id
+            return new_id, ""
         services.update_work(g.db, wid, data, tags_raw)
         flash("已保存修改", "ok")
-        return wid
-    except sqlite3.IntegrityError:
-        flash(f"番号 {code} 已存在", "error")
-        return None
+        return wid, ""
+    except ValueError as exc:  # 服务层查重:番号已存在
+        flash(str(exc), "error")
+        return None, str(exc)
+    except sqlite3.IntegrityError:  # DB 唯一约束兜底
+        msg = f"番号 {code} 已存在"
+        flash(msg, "error")
+        return None, msg
 
 
 @bp.get("/works")
@@ -64,12 +89,31 @@ def work_new():
     )
 
 
+@bp.get("/works/dup-check")
+def work_dup_check():
+    """输入时自动查重:番号两段归一拼接后精确匹配;exclude_id 用于编辑态排除自身。
+    段不完整/非法时返回 duplicate=false(不提示、不报错,由提交时校验兜底)。"""
+    try:
+        code = services.build_code(request.args.get("alpha", ""), request.args.get("num", ""))
+    except ValueError:
+        return jsonify({"duplicate": False, "url": None, "label": ""})
+    exclude = int_or_none(request.args.get("exclude_id"))
+    dup = services.find_work_by_code(g.db, code, exclude_id=exclude)
+    if dup is None:
+        return jsonify({"duplicate": False, "url": None, "label": ""})
+    return jsonify({
+        "duplicate": True,
+        "url": url_for("loverlist.work_detail", wid=dup["id"]),
+        "label": f"番号 {code} 已存在",
+    })
+
+
 @bp.post("/works")
 def work_create():
-    new_id = _save_work()
+    new_id, _err = _save_work()
     if new_id:
         return redirect(url_for("loverlist.work_detail", wid=new_id))
-    return redirect(url_for("loverlist.work_new"))
+    return render_template("work_form.html", **_work_form_context())
 
 
 @bp.get("/works/<int:wid>")
@@ -110,9 +154,10 @@ def work_edit(wid):
 def work_update(wid):
     if services.get_work(g.db, wid) is None:
         abort(404)
-    if _save_work(wid):
-        return redirect(url_for("loverlist.work_detail", wid=wid))
-    return redirect(url_for("loverlist.work_edit", wid=wid))
+    new_id, _err = _save_work(wid)
+    if new_id:
+        return redirect(url_for("loverlist.work_detail", wid=new_id))
+    return render_template("work_form.html", **_work_form_context(wid))
 
 
 @bp.post("/works/<int:wid>/delete")

@@ -17,6 +17,7 @@
     {{ avatar(today, 'avatar avatar-md') }}
     <div>
       <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.id) }}">{{ today.name }}</a>
+      <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ today.name }}" title="复制姓名">📋</button>
       {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
       <div class="muted small">当前心动 {{ today.heart_count }} · 每天按心动指数加权换人</div>
     </div>
@@ -27,12 +28,46 @@
 <div class="card"><p class="muted">库还是空的——去<a href="{{ url_for('loverlist.person_new') }}"> 新建人物 </a>,先把心动的人收录进来吧。</p></div>
 {% endif %}
 
+<div class="card">
+  <h2>🎲 今日评审 <span class="muted small">(每天从「评审中」随机抽 3 部 VR + 3 部非 VR,当日固定、次日重抽)</span></h2>
+  {% if today_review.vr or today_review.normal %}
+  <div class="two-col">
+    <div>
+      <div class="review-group-title">VR({{ today_review.vr|length }})</div>
+      <ul class="review-picks">
+        {% for w in today_review.vr %}
+        <li>
+          <a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a>
+          <span class="filename-text mono" title="{{ w.filename }}">{{ w.filename or '—' }}</span>
+          <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ w.filename }}" title="复制文件名">📋</button>
+        </li>
+        {% else %}<li class="muted">评审中没有 VR 作品</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <div class="review-group-title">非VR({{ today_review.normal|length }})</div>
+      <ul class="review-picks">
+        {% for w in today_review.normal %}
+        <li>
+          <a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a>
+          <span class="filename-text mono" title="{{ w.filename }}">{{ w.filename or '—' }}</span>
+          <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ w.filename }}" title="复制文件名">📋</button>
+        </li>
+        {% else %}<li class="muted">评审中没有非 VR 作品</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% else %}
+  <p class="muted">没有评审中的作品——用顶栏「＋ 作品」添加,或到<a href="{{ url_for('loverlist.review_page') }}">评审页</a>处理存量。</p>
+  {% endif %}
+</div>
+
 <div class="two-col">
   <div class="card">
     <h2>心动 Top 5</h2>
     <ol class="rank-list">
       {% for p in top %}
-      <li><span>{{ avatar(p) }}</span><a href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a><span class="rank-hearts">💗 {{ p.heart_count }}</span></li>
+      <li><span>{{ avatar(p) }}</span><span class="rank-name"><a href="{{ url_for('loverlist.person_detail', pid=p.id) }}">{{ p.name }}</a> <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ p.name }}" title="复制姓名">📋</button></span><span class="rank-hearts">💗 {{ p.heart_count }}</span></li>
       {% else %}<li class="muted">暂无数据</li>{% endfor %}
     </ol>
   </div>
