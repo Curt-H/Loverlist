@@ -72,13 +72,17 @@ def works():
     q = request.args.get("q", "").strip()
     tag = request.args.get("tag", "").strip()
     status = request.args.get("status", "").strip()
+    # 默认隐藏「不予收录」:点「包含不予收录作品」按钮或显式按「不予收录」筛选时才显示
+    include_rejected = request.args.get("include_rejected", "") == "1"
     rows, total, page, pages = services.list_works(
-        g.db, q=q, tag=tag or None, status=status or None, page=page_arg()
+        g.db, q=q, tag=tag or None, status=status or None,
+        exclude_rejected=not include_rejected and status != "不予收录",
+        page=page_arg(),
     )
     return render_template(
         "works.html", rows=rows, total=total, page=page, pages=pages,
         q=q, tag=tag, status=status, statuses=services.WORK_STATUSES,
-        tags=services.all_tags(g.db),
+        tags=services.all_tags(g.db), include_rejected=include_rejected,
     )
 
 

@@ -407,7 +407,7 @@ def create_work(conn: sqlite3.Connection, data: dict, tags_raw: str = "") -> int
 
 
 def update_work(conn: sqlite3.Connection, work_id: int, data: dict, tags_raw: str = "") -> None:
-    """更新作品(不含状态与文件名——前者仅在评审页改,后者按阵容自动派生)。"""
+    """更新作品(不含状态与文件名——前者仅在评审页/首页快捷判定改,后者按阵容自动派生)。"""
     code = normalize_code(data.get("code"))
     if not code:
         raise ValueError("番号必填")
@@ -430,7 +430,7 @@ def update_work(conn: sqlite3.Connection, work_id: int, data: dict, tags_raw: st
 
 
 def set_work_status(conn: sqlite3.Connection, work_id: int, status: str) -> None:
-    """更改作品状态(仅评审页调用);非法状态抛 ValueError。"""
+    """更改作品状态(评审页与首页今日评审快捷按钮调用);非法状态抛 ValueError。"""
     status = (status or "").strip()
     if status not in WORK_STATUSES:
         raise ValueError("未知的状态值")

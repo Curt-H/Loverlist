@@ -40,6 +40,18 @@
           <a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a>
           <span class="filename-text mono" title="{{ w.filename }}">{{ w.filename or '—' }}</span>
           <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ w.filename }}" title="复制文件名">📋</button>
+          <span class="nowrap actions">
+            <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为已收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+              <input type="hidden" name="status" value="已收录">
+              <input type="hidden" name="next" value="{{ url_for('loverlist.dashboard') }}">
+              <button class="btn btn-small btn-ok review-act" type="submit" title="标记为已收录">√</button>
+            </form>
+            <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为不予收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+              <input type="hidden" name="status" value="不予收录">
+              <input type="hidden" name="next" value="{{ url_for('loverlist.dashboard') }}">
+              <button class="btn btn-small btn-danger review-act" type="submit" title="标记为不予收录">×</button>
+            </form>
+          </span>
         </li>
         {% else %}<li class="muted">评审中没有 VR 作品</li>{% endfor %}
       </ul>
@@ -52,6 +64,18 @@
           <a class="strong" href="{{ url_for('loverlist.work_detail', wid=w.id) }}">{{ w.code }}</a>
           <span class="filename-text mono" title="{{ w.filename }}">{{ w.filename or '—' }}</span>
           <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ w.filename }}" title="复制文件名">📋</button>
+          <span class="nowrap actions">
+            <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为已收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+              <input type="hidden" name="status" value="已收录">
+              <input type="hidden" name="next" value="{{ url_for('loverlist.dashboard') }}">
+              <button class="btn btn-small btn-ok review-act" type="submit" title="标记为已收录">√</button>
+            </form>
+            <form class="inline js-confirm" method="post" data-msg="将「{{ w.code }}」标记为不予收录?" action="{{ url_for('loverlist.work_set_status', wid=w.id) }}">
+              <input type="hidden" name="status" value="不予收录">
+              <input type="hidden" name="next" value="{{ url_for('loverlist.dashboard') }}">
+              <button class="btn btn-small btn-danger review-act" type="submit" title="标记为不予收录">×</button>
+            </form>
+          </span>
         </li>
         {% else %}<li class="muted">评审中没有非 VR 作品</li>{% endfor %}
       </ul>

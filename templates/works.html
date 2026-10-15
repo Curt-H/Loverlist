@@ -20,6 +20,7 @@
 {% endif %}
 
 <form class="filter-bar" method="get">
+  {% if include_rejected %}<input type="hidden" name="include_rejected" value="1">{% endif %}
   <input type="text" name="q" value="{{ q }}" placeholder="搜索 番号 / 标题">
   <select name="status">
     <option value="">全部状态</option>
@@ -28,6 +29,11 @@
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
   <button class="btn" type="submit">搜索</button>
   <a class="btn btn-ghost" href="{{ url_for('loverlist.works') }}">重置</a>
+  {% if include_rejected %}
+  <a class="btn btn-primary" title="当前已包含不予收录的作品,点击恢复默认(隐藏)" href="{{ url_for('loverlist.works', q=q, tag=tag, status=status) }}">✓ 包含不予收录作品</a>
+  {% else %}
+  <a class="btn btn-ghost" title="列表默认隐藏不予收录的作品,点击包含" href="{{ url_for('loverlist.works', q=q, tag=tag, status=status, include_rejected='1') }}">包含不予收录作品</a>
+  {% endif %}
 </form>
 
 <table class="table">
@@ -52,5 +58,5 @@
   {% endfor %}
   </tbody>
 </table>
-{{ paginate(page, pages, total, {'q': q, 'tag': tag, 'status': status}) }}
+{{ paginate(page, pages, total, {'q': q, 'tag': tag, 'status': status, 'include_rejected': '1' if include_rejected else ''}) }}
 {% endblock %}

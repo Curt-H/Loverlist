@@ -440,6 +440,118 @@ class WebTests(unittest.TestCase):
         self.assertIn("LOV-002", html)
         self.assertIn('data-copy="LOV-001@ひなた"', html)   # 文件名复制按钮
         self.assertIn('data-copy="LOV-002"', html)
+        # 每个条目带 √/× 快捷判定按钮,且均要求二次确认(js-confirm + data-msg)
+        self.assertEqual(html.count(">√<"), 2)   # VR/非VR 条目各一个
+        self.assertEqual(html.count(">×<"), 2)
+        self.assertIn("将「LOV-001」标记为已收录?", html)
+        self.assertIn("将「LOV-001」标记为不予收录?", html)
+        self.assertEqual(html.count('form class="inline js-confirm"'), 4)  # 每条目 √/× 各一
+        self.assertEqual(html.count('name="next" value="/"'), 4)           # 判定后跳回首页
+
+    def test_today_review_quick_judge_next_redirect(self):
+        # 首页快捷判定:POST status + next=/ → 判定后留在仪表盘
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works WHERE code = 'LOV-001'").fetchone()[0]
+        finally:
+            conn.close()
+        r = self.client.post(f"/works/{wid}/status", data={"status": "不予收录", "next": "/"})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(r.headers["Location"], ("/", "http://localhost/"))
+        r = self.client.get("/")  # 落地首页(而非评审页),flash 提示判定结果
+        self.assertIn("状态已更新".encode("utf-8"), r.data)
+        self.assertIn("仪表盘".encode("utf-8"), r.data)
+        html = r.data.decode("utf-8")
+        card = html[html.index("今日评审"):html.index("心动 Top 5")]  # 只看今日评审卡片
+        self.assertNotIn("LOV-001", card)  # 已判定(不予收录),不再出现在今日评审
+        self.assertIn("LOV-002", card)
+        # next 仅接受站内相对路径:外部地址一律回退到评审页(防开放重定向)
+        r = self.client.post(
+            f"/works/{wid}/status",
+            data={"status": "评审中", "next": "http://evil.example"},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(r.headers["Location"], ("/review", "http://localhost/review"))
+        html2 = self.client.get("/").data.decode("utf-8")
+        card2 = html2[html2.index("今日评审"):html2.index("心动 Top 5")]
+        self.assertIn("LOV-001", card2)  # 退回评审后重新入池
+
+    def test_work_detail_quick_review_buttons(self):
+        # 详情页:评审中作品显示 √/× 快捷评审按钮(均需二次确认),next 指回详情页
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
+        conn = get_connection(self.db_path)
+        try:
+            wid = conn.execute("SELECT id FROM works LIMIT 1").fetchone()[0]
+        finally:
+            conn.close()
+        detail = f"/works/{wid}"
+        html = self.client.get(detail).data.decode("utf-8")
+        self.assertIn("将「LOV-001」标记为已收录?", html)
+        self.assertIn("将「LOV-001」标记为不予收录?", html)
+        self.assertEqual(html.count(f'name="next" value="{detail}"'), 2)
+        self.assertNotIn("退回评审", html)  # 评审中无退回按钮
+        # 详情页快捷判定已收录 → 留在详情页,按钮切换为「退回评审」
+        r = self.client.post(f"{detail}/status", data={"status": "已收录", "next": detail})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(r.headers["Location"], (detail, f"http://localhost{detail}"))
+        html = self.client.get(detail).data.decode("utf-8")
+        self.assertIn("status-badge st-ok", html)          # 状态徽章:已收录
+        self.assertNotIn("status-badge st-review", html)
+        self.assertIn("将「LOV-001」退回评审?", html)
+        self.assertNotIn("标记为已收录?", html)            # √/× 按钮已隐藏
+        self.assertNotIn("标记为不予收录?", html)
+        # 退回评审 → √/× 重新出现,状态徽章回到评审中
+        self.client.post(f"{detail}/status", data={"status": "评审中", "next": detail})
+        html = self.client.get(detail).data.decode("utf-8")
+        self.assertIn("status-badge st-review", html)
+        self.assertIn("将「LOV-001」标记为已收录?", html)
+        self.assertIn("将「LOV-001」标记为不予收录?", html)
+        self.assertNotIn("退回评审", html)
+
+    def test_works_page_rejected_hidden_by_default_toggle(self):
+        # /works 默认隐藏不予收录;「包含不予收录作品」按钮或状态筛选可显示
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "001"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "002"})
+        self.client.post("/works", data={"code_alpha": "LOV", "code_num": "003"})
+        conn = get_connection(self.db_path)
+        try:
+            wids = {r["code"]: r["id"] for r in conn.execute("SELECT code, id FROM works")}
+        finally:
+            conn.close()
+        self.client.post(f"/works/{wids['LOV-001']}/status", data={"status": "已收录"})
+        self.client.post(f"/works/{wids['LOV-002']}/status", data={"status": "不予收录"})
+
+        def tbody(html):
+            """作品列表表格内容(避开 flash 提示文案)。"""
+            return html[html.index("<tbody>"):html.index("</tbody>")]
+
+        # 默认:不显示不予收录,重置旁出现「包含不予收录作品」按钮
+        html = self.client.get("/works").data.decode("utf-8")
+        rows = tbody(html)
+        self.assertIn("LOV-001", rows)
+        self.assertIn("LOV-003", rows)
+        self.assertNotIn("LOV-002", rows)
+        self.assertIn(">包含不予收录作品</a>", html)
+        self.assertIn("include_rejected=1", html)
+        # 点击按钮:包含不予收录,按钮变激活态(✓ 前缀,点击恢复默认)
+        html = self.client.get("/works?include_rejected=1").data.decode("utf-8")
+        self.assertIn("LOV-002", tbody(html))
+        self.assertIn(">✓ 包含不予收录作品</a>", html)
+        self.assertNotIn(">包含不予收录作品</a>", html)
+        self.assertIn('name="include_rejected" value="1"', html)  # 搜索后不丢包含状态
+        # 显式按「不予收录」筛选仍然有效
+        html = self.client.get("/works?status=不予收录").data.decode("utf-8")
+        rows = tbody(html)
+        self.assertNotIn("LOV-001", rows)
+        self.assertIn("LOV-002", rows)
+        self.assertNotIn("LOV-003", rows)
+        # 其他状态筛选不受影响
+        html = self.client.get("/works?status=已收录").data.decode("utf-8")
+        rows = tbody(html)
+        self.assertIn("LOV-001", rows)
+        self.assertNotIn("LOV-002", rows)
 
     def test_review_page_compact_limited_newest_first_vr_mark(self):
         for i in range(1, 12):

@@ -186,6 +186,8 @@ h2 { font-size: 16px; margin: 0 0 12px; }
 .props { display: grid; grid-template-columns: 110px 1fr; gap: 8px 16px; margin: 0; }
 .props dt { color: var(--muted); font-size: 13px; }
 .props dd { margin: 0; }
+/* ---- 作品详情·状态行快捷评审(√/× 判定 / 退回评审) ---- */
+.props .status-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: 8px; vertical-align: middle; flex-wrap: wrap; }
 .heart-num { color: var(--pink-dark); font-weight: 700; }
 .agency-list { margin: 0; padding-left: 18px; }
 .agency-years { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -291,3 +293,5 @@ code { background: var(--pink-light); border-radius: 4px; padding: 1px 6px; font
 .review-picks { list-style: none; margin: 0; padding: 0; }
 .review-picks li { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; min-width: 0; }
 .review-picks .filename-text { flex: 1 1 auto; min-width: 0; max-width: none; }
+.review-picks .actions { margin-left: auto; display: inline-flex; gap: 4px; }
+.review-act { min-width: 32px; padding: 4px 8px; font-weight: 700; text-align: center; }

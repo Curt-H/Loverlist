@@ -19,7 +19,31 @@
   <dl class="props">
     <dt>番号</dt><dd class="strong">{{ work.code }}{% if work.is_vr %} <span class="vr-mark" title="VR作品">ᯅ</span>{% endif %}</dd>
     <dt>标题</dt><dd>{{ work.title or '—' }}</dd>
-    <dt>状态</dt><dd>{{ status_badge(work.status) }} <span class="muted small">(状态在「评审」页更改)</span></dd>
+    <dt>状态</dt>
+    <dd>
+      {{ status_badge(work.status) }}
+      <span class="nowrap status-actions">
+        {% if work.status == '评审中' %}
+        <form class="inline js-confirm" method="post" data-msg="将「{{ work.code }}」标记为已收录?" action="{{ url_for('loverlist.work_set_status', wid=work.id) }}">
+          <input type="hidden" name="status" value="已收录">
+          <input type="hidden" name="next" value="{{ url_for('loverlist.work_detail', wid=work.id) }}">
+          <button class="btn btn-small btn-ok" type="submit" title="标记为已收录">√ 已收录</button>
+        </form>
+        <form class="inline js-confirm" method="post" data-msg="将「{{ work.code }}」标记为不予收录?" action="{{ url_for('loverlist.work_set_status', wid=work.id) }}">
+          <input type="hidden" name="status" value="不予收录">
+          <input type="hidden" name="next" value="{{ url_for('loverlist.work_detail', wid=work.id) }}">
+          <button class="btn btn-small btn-danger" type="submit" title="标记为不予收录">× 不予收录</button>
+        </form>
+        {% else %}
+        <form class="inline js-confirm" method="post" data-msg="将「{{ work.code }}」退回评审?" action="{{ url_for('loverlist.work_set_status', wid=work.id) }}">
+          <input type="hidden" name="status" value="评审中">
+          <input type="hidden" name="next" value="{{ url_for('loverlist.work_detail', wid=work.id) }}">
+          <button class="btn btn-small" type="submit" title="退回评审">↩ 退回评审</button>
+        </form>
+        {% endif %}
+      </span>
+      <span class="muted small">(可在此快捷评审;也可在「评审」页更改)</span>
+    </dd>
     <dt>文件名</dt>
     <dd>
       <span class="filename-line">
@@ -27,7 +51,6 @@
         <button type="button" class="btn btn-small js-copy" data-copy="{{ work.filename }}" title="复制到剪贴板">📋 复制</button>
       </span>
     </dd>
-    <dt>状态</dt><dd>{{ work.status or '—' }}</dd>
     <dt>备注</dt><dd>{{ work.notes or '—' }}</dd>
     <dt>录入时间</dt><dd>{{ work.created_at }}</dd>
   </dl>
