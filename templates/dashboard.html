@@ -10,18 +10,36 @@
   <div class="stat-card"><div class="stat-num">{{ stats.total_hearts }}</div><div class="stat-label">总心动</div></div>
   <div class="stat-card"><div class="stat-num stat-multi">{{ stats.review_count }} / {{ stats.accepted_count }} / {{ stats.rejected_count }}</div><div class="stat-label">待审 / 已收录 / 不予收录</div></div>
 </div>
-{% if today %}
+{% if today.top or today.fresh %}
 <div class="card today-card">
-  <h2>💗 今日心动</h2>
-  <div class="today-body">
-    {{ avatar(today, 'avatar avatar-md') }}
-    <div>
-      <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.id) }}">{{ today.name }}</a>
-      <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ today.name }}" title="复制姓名">📋</button>
-      {% if today.kana %}<div class="muted">{{ today.kana }}</div>{% endif %}
-      <div class="muted small">当前心动 {{ today.heart_count }} · 每天按心动指数加权换人</div>
+  <h2>💗 今日心动 <span class="muted small">(高心动加权随机 + 新人各一位;滚动 7 天不重复,当日固定、次日重抽)</span></h2>
+  <div class="two-col">
+    {% if today.top %}
+    <div class="today-body">
+      {{ avatar(today.top, 'avatar avatar-md') }}
+      <div>
+        <div class="muted small">💗 高心动 · 按心动指数加权随机</div>
+        <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.top.id) }}">{{ today.top.name }}</a>
+        <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ today.top.name }}" title="复制姓名">📋</button>
+        {% if today.top.kana %}<div class="muted">{{ today.top.kana }}</div>{% endif %}
+        <div class="muted small">当前心动 {{ today.top.heart_count }}</div>
+      </div>
+      {{ heart_display(today.top) }}
     </div>
-    {{ heart_display(today) }}
+    {% endif %}
+    {% if today.fresh %}
+    <div class="today-body">
+      {{ avatar(today.fresh, 'avatar avatar-md') }}
+      <div>
+        <div class="muted small">🌱 新人 · 30 天内录入或心动值为 0</div>
+        <a class="today-name" href="{{ url_for('loverlist.person_detail', pid=today.fresh.id) }}">{{ today.fresh.name }}</a>
+        <button type="button" class="btn btn-small btn-ghost js-copy copy-name" data-copy="{{ today.fresh.name }}" title="复制姓名">📋</button>
+        {% if today.fresh.kana %}<div class="muted">{{ today.fresh.kana }}</div>{% endif %}
+        <div class="muted small">当前心动 {{ today.fresh.heart_count }}</div>
+      </div>
+      {{ heart_display(today.fresh) }}
+    </div>
+    {% endif %}
   </div>
 </div>
 {% else %}

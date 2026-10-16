@@ -3,7 +3,7 @@ import math
 import random
 import re
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 
 # ---------------------------------------------------------------------------
 # 常量与软校验
@@ -23,6 +23,9 @@ SORT_DEFAULT_DIR = {
 WORK_STATUSES = ("评审中", "已收录", "不予收录")
 STATUS_DEFAULT = "评审中"    # 新建作品的初始状态
 STATUS_LEGACY = "已收录"     # 存量空状态归入值
+
+RECO_REPEAT_FREE_DAYS = 7    # 今日推荐:滚动不重复窗口(天,含今日)
+RECO_FRESH_DAYS = 30         # 「新人」定义:最近录入天数(心动值为 0 亦算)
 
 WORK_TAGS_SQL = "(SELECT GROUP_CONCAT(wt.tag, ',') FROM work_tags wt WHERE wt.work_id = w.id) AS tags"
 WORK_CAST_SQL = "(SELECT COUNT(*) FROM credits c WHERE c.work_id = w.id) AS cast_size"
@@ -540,7 +543,7 @@ def remove_credit(conn: sqlite3.Connection, credit_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 统计与今日心动
+# 统计与今日推荐
 # ---------------------------------------------------------------------------
 def dashboard_stats(conn: sqlite3.Connection) -> dict:
     def one(sql):
@@ -566,16 +569,99 @@ def top_persons(conn: sqlite3.Connection, limit: int = 5) -> list:
     ).fetchall()
 
 
-def today_heart(conn: sqlite3.Connection) -> sqlite3.Row | None:
-    """今日心动:按心动指数加权随机,当天内确定(种子=日期),次日重抽。"""
-    rows = conn.execute("SELECT * FROM persons").fetchall()
-    if not rows:
-        return None
+def _reco_history_since(conn: sqlite3.Connection, since_day: str) -> dict:
+    """滚动窗口内的推荐历史:{slot: {person_id, ...}},slot ∈ top/fresh。"""
+    hist: dict = {"top": set(), "fresh": set()}
+    for r in conn.execute(
+        "SELECT slot, person_id FROM recommendation_history WHERE day >= ?",
+        (since_day,),
+    ):
+        hist[r["slot"]].add(r["person_id"])
+    return hist
+
+
+def _pick_weighted(rnd: random.Random, rows: list) -> sqlite3.Row:
+    """按心动指数加权随机;全为 0 时等概率(与旧版今日心动一致)。"""
     weights = [max(int(r["heart_count"] or 0), 0) for r in rows]
-    rnd = random.Random(f"loverlist-{date.today().isoformat()}")
     if sum(weights) > 0:
         return rnd.choices(rows, weights=weights, k=1)[0]
     return rnd.choice(rows)
+
+
+def _fresh_candidates(conn: sqlite3.Connection) -> list:
+    """新人池:心动值为 0,或最近 RECO_FRESH_DAYS 天内录入;录入时间倒序。"""
+    return conn.execute(
+        "SELECT * FROM persons"
+        " WHERE heart_count <= 0 OR created_at >= date('now', 'localtime', ?)"
+        " ORDER BY created_at DESC, id DESC",
+        (f"-{RECO_FRESH_DAYS} days",),
+    ).fetchall()
+
+
+def today_recommend(conn: sqlite3.Connection) -> dict:
+    """今日推荐:{"top": 高心动一位, "fresh": 新人一位},无合适人选时该坑为 None。
+
+    - top:仅从 heart_count > 0 的人物池按心动指数加权随机(高心动者概率大);
+      池被窗口排空时回退全量加权随机(旧行为,允许重复)。
+    - fresh:心动值为 0 或最近 RECO_FRESH_DAYS 天录入,池内均匀随机;池枯竭分级回退:
+      ①未入窗口的任意人(心动值最低优先)→ ②放开窗口按新人池重抽(允许重复)。
+    - 两坑均排除滚动 RECO_REPEAT_FREE_DAYS 天内已推荐过的人;fresh 排除当日 top
+      (跨坑互斥),top 生成时亦避开当日 fresh。
+    - 当日首次生成写入 recommendation_history(人物删除时级联清史),当天固定、
+      次日重抽;种子含日期,同日重放结果确定。
+    """
+    today = date.today().isoformat()
+    since = (date.today() - timedelta(days=RECO_REPEAT_FREE_DAYS - 1)).isoformat()
+
+    by_slot: dict = {
+        r["slot"]: r["person_id"]
+        for r in conn.execute(
+            "SELECT slot, person_id FROM recommendation_history WHERE day = ?", (today,)
+        )
+    }
+    missing = [s for s in ("top", "fresh") if s not in by_slot]
+    if missing:
+        rnd = random.Random(f"loverlist-reco-{today}")
+        hist = _reco_history_since(conn, since)
+        if "top" in missing:
+            rows = conn.execute("SELECT * FROM persons ORDER BY id").fetchall()
+            if rows:
+                pool = [r for r in rows
+                        if r["heart_count"] > 0
+                        and r["id"] not in hist["top"]
+                        and r["id"] != by_slot.get("fresh")]
+                by_slot["top"] = (_pick_weighted(rnd, pool) if pool
+                                  else _pick_weighted(rnd, rows))["id"]
+        if "fresh" in missing:
+            pool = [r for r in _fresh_candidates(conn)
+                    if r["id"] not in hist["fresh"] and r["id"] != by_slot.get("top")]
+            row = rnd.choice(pool) if pool else None
+            if row is None:  # ①窗口内新人被推光:未入窗口的任意人,心动值最低优先
+                row = conn.execute(
+                    "SELECT * FROM persons WHERE id NOT IN"
+                    " (SELECT person_id FROM recommendation_history WHERE day >= ?)"
+                    " AND id != ?"
+                    " ORDER BY heart_count ASC, created_at DESC, id ASC LIMIT 1",
+                    (since, by_slot.get("top", -1)),
+                ).fetchone()
+            if row is None:  # ②全库都在窗口内:放开重复,按新人池重抽
+                pool = [r for r in _fresh_candidates(conn) if r["id"] != by_slot.get("top")]
+                row = rnd.choice(pool) if pool else None
+            if row is not None:
+                by_slot["fresh"] = row["id"]
+        conn.executemany(
+            "INSERT OR IGNORE INTO recommendation_history(day, slot, person_id)"
+            " VALUES (?, ?, ?)",
+            [(today, s, by_slot[s]) for s in missing if s in by_slot],
+        )
+        conn.commit()
+
+    result = {"top": None, "fresh": None}
+    for slot, pid in by_slot.items():
+        result[slot] = conn.execute(
+            "SELECT * FROM persons WHERE id = ?", (pid,)
+        ).fetchone()
+    return result
 
 
 def today_review(conn: sqlite3.Connection, per_kind: int = 3) -> dict:

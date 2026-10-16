@@ -61,6 +61,13 @@ CREATE TABLE IF NOT EXISTS credits (
     UNIQUE(person_id, work_id, role)
 );
 
+CREATE TABLE IF NOT EXISTS recommendation_history (
+    day       TEXT    NOT NULL,                -- YYYY-MM-DD
+    slot      TEXT    NOT NULL,                -- 坑位:top=高心动 / fresh=新人
+    person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    UNIQUE(day, slot)                           -- 每天每坑位一条(当日固定)
+);
+
 CREATE INDEX IF NOT EXISTS idx_persons_heart   ON persons(heart_count DESC);
 CREATE INDEX IF NOT EXISTS idx_works_status    ON works(status);
 CREATE INDEX IF NOT EXISTS idx_agency_person   ON agency_history(person_id);
@@ -68,6 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_tags_work       ON work_tags(work_id);
 CREATE INDEX IF NOT EXISTS idx_tags_tag        ON work_tags(tag);
 CREATE INDEX IF NOT EXISTS idx_credits_person  ON credits(person_id);
 CREATE INDEX IF NOT EXISTS idx_credits_work    ON credits(work_id);
+CREATE INDEX IF NOT EXISTS idx_reco_day        ON recommendation_history(day);
 """
 
 

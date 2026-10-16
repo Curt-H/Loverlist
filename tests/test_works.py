@@ -1,4 +1,5 @@
 import unittest
+from datetime import date, timedelta
 
 from loverlist import services
 
@@ -130,7 +131,9 @@ class StatsTests(unittest.TestCase):
             {"person_count": 0, "work_count": 0, "tag_count": 0, "total_hearts": 0,
              "review_count": 0, "accepted_count": 0, "rejected_count": 0},
         )
-        self.assertIsNone(services.today_heart(self.conn))
+        self.assertEqual(
+            services.today_recommend(self.conn), {"top": None, "fresh": None}
+        )
 
     def test_stats_top_fav_and_weighted_today(self):
         pid_lo = services.create_person(self.conn, person_data(name="少动"))
@@ -144,9 +147,78 @@ class StatsTests(unittest.TestCase):
         self.assertEqual(services.top_persons(self.conn, 1)[0]["name"], "超动")
         favs = services.favorite_persons(self.conn)
         self.assertEqual([p["name"] for p in favs], ["少动"])
-        pick = services.today_heart(self.conn)
-        self.assertEqual(pick["name"], "超动")  # 权重 0:10,必中高权重
-        self.assertEqual(services.today_heart(self.conn)["id"], pick["id"])  # 同日确定
+        reco = services.today_recommend(self.conn)
+        self.assertEqual(reco["top"]["name"], "超动")   # top 加权 0:10,必中高权重
+        self.assertEqual(reco["fresh"]["name"], "少动")  # 新人池(0 心动)且避开当日 top
+        again = services.today_recommend(self.conn)
+        self.assertEqual(again["top"]["id"], reco["top"]["id"])      # 当日固定(落库)
+        self.assertEqual(again["fresh"]["id"], reco["fresh"]["id"])
+
+
+class TodayRecommendTests(unittest.TestCase):
+    """今日推荐:双坑位、滚动 7 天不重复、分级回退与跨坑互斥。"""
+
+    def setUp(self):
+        make_conn(self)
+
+    def _hist(self, day, slot, pid):
+        self.conn.execute(
+            "INSERT INTO recommendation_history(day, slot, person_id) VALUES (?, ?, ?)",
+            (day, slot, pid),
+        )
+        self.conn.commit()
+
+    def _past_days(self, n):
+        """今天(不含)往前的 n 天日期,旧 → 新。"""
+        today = date.today()
+        return [(today - timedelta(days=i)).isoformat() for i in range(n, 0, -1)]
+
+    def test_window_exclusion_and_last_resort(self):
+        """窗口内被推过的高位/新人被排除;新人池枯竭时按分级回退兜底。"""
+        pid_a = services.create_person(self.conn, person_data(name="A高"))
+        pid_b = services.create_person(self.conn, person_data(name="B高"))
+        pid_c = services.create_person(self.conn, person_data(name="C新"))
+        services.increment_heart(self.conn, pid_a)
+        services.increment_heart(self.conn, pid_b)
+        # A、B 录入时间回拨 40 天:仅凭 heart>0 进高位池,不再命中「30 天内录入」新人条件
+        old = (date.today() - timedelta(days=40)).isoformat() + " 10:00:00"
+        self.conn.execute(
+            "UPDATE persons SET created_at = ? WHERE id IN (?, ?)", (old, pid_a, pid_b)
+        )
+        self.conn.commit()
+        for day in self._past_days(6):
+            self._hist(day, "top", pid_a)      # A 在窗口内被推过 → top 排除 A
+            self._hist(day, "fresh", pid_c)    # C 在窗口内被推过 → 新人池排空
+        reco = services.today_recommend(self.conn)
+        self.assertEqual(reco["top"]["name"], "B高")   # top 只剩 B(加权随机)
+        self.assertEqual(reco["fresh"]["name"], "C新")  # 分级回退②:放开窗口按新人池重抽
+        again = services.today_recommend(self.conn)     # 当日落库,同日重放不变
+        self.assertEqual(again["top"]["id"], reco["top"]["id"])
+        self.assertEqual(again["fresh"]["id"], reco["fresh"]["id"])
+        rows = self.conn.execute(
+            "SELECT slot, person_id FROM recommendation_history"
+            " WHERE day = ?", (date.today().isoformat(),),
+        ).fetchall()
+        self.assertEqual(
+            {(r["slot"], r["person_id"]) for r in rows},
+            {("top", pid_b), ("fresh", pid_c)},
+        )
+
+    def test_cross_slot_exclusion_and_fresh_by_recency_or_zero(self):
+        """今日录入且有心动的人可同时命中两个池;新人坑避开当日 top。"""
+        pid_hi = services.create_person(self.conn, person_data(name="新高"))
+        pid_old = services.create_person(self.conn, person_data(name="旧零"))
+        services.increment_heart(self.conn, pid_hi)
+        services.increment_heart(self.conn, pid_hi)
+        # 旧零:40 天前录入,心动 0 —— 仅靠「0 心动」条件进入新人池
+        old = (date.today() - timedelta(days=40)).isoformat() + " 10:00:00"
+        self.conn.execute(
+            "UPDATE persons SET created_at = ? WHERE id = ?", (old, pid_old)
+        )
+        self.conn.commit()
+        reco = services.today_recommend(self.conn)
+        self.assertEqual(reco["top"]["name"], "新高")   # top 池(heart>0)只有新高
+        self.assertEqual(reco["fresh"]["name"], "旧零")  # 新人池排除当日 top 后只剩旧零
 
 
 class WorkStatusTests(unittest.TestCase):

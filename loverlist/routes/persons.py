@@ -185,7 +185,7 @@ def person_favorite(pid):
 def favorites():
     return render_template(
         "favorites.html",
-        today=services.today_heart(g.db),
+        today=services.today_recommend(g.db),
         top=services.top_persons(g.db, 20),
         favs=services.favorite_persons(g.db),
     )
