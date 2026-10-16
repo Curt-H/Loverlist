@@ -232,21 +232,21 @@ class WorkFilenameTests(unittest.TestCase):
         self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-001")
         # 出演类关系计入,按添加顺序
         services.add_credit(self.conn, wid, p1, "出演", "")
-        self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-001@ひなた")
+        self.assertEqual(services.get_work(self.conn, wid)["filename"], "ひなた@LOV-001")
         services.add_credit(self.conn, wid, p2, "主演", "")
-        self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-001@ひなた&愛理")
+        self.assertEqual(services.get_work(self.conn, wid)["filename"], "ひなた&愛理@LOV-001")
         # 幕后职务(导演)不计入
         services.add_credit(self.conn, wid, pd, "导演", "")
-        self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-001@ひなた&愛理")
+        self.assertEqual(services.get_work(self.conn, wid)["filename"], "ひなた&愛理@LOV-001")
         # 修改番号 → 重算
         services.update_work(self.conn, wid, {"code": "LOV-009"}, "tag")
-        self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-009@ひなた&愛理")
+        self.assertEqual(services.get_work(self.conn, wid)["filename"], "ひなた&愛理@LOV-009")
         # 演员改名 → 重算
         services.update_person(self.conn, p2, person_data(name="愛理改"))
-        self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-009@ひなた&愛理改")
+        self.assertEqual(services.get_work(self.conn, wid)["filename"], "ひなた&愛理改@LOV-009")
         # 删除演员(级联清阵容)→ 重算
         services.delete_person(self.conn, p1)
-        self.assertEqual(services.get_work(self.conn, wid)["filename"], "LOV-009@愛理改")
+        self.assertEqual(services.get_work(self.conn, wid)["filename"], "愛理改@LOV-009")
         # 移除全部出演 → 仅剩番号
         credits = services.work_credits(self.conn, wid)
         for c in list(credits):

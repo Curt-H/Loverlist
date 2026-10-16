@@ -3,7 +3,7 @@ setlocal
 REM ============================================================
 REM  Loverlist one-click environment setup
 REM  Runtime : embedded Python 3.11.9 (the PYTHON folder).
-REM  If PYTHON is missing, download the "Windows embeddable
+REM  If PYTHON is missing, download the "Windows embeddable"
 REM  package (64-bit)" for 3.11.9 from python.org and extract
 REM  it into .\PYTHON
 REM ============================================================

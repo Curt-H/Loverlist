@@ -187,7 +187,7 @@ class WebTests(unittest.TestCase):
         work_html = self.client.get(f"/works/{wid}").data
         self.assertIn(b"heart-btn js-heart", work_html)             # 阵容表可+1
         self.assertIn(b"data-copy", work_html)                      # 复制按钮
-        self.assertIn("LOV-001@ひなた".encode("utf-8"), work_html)   # 文件名自动派生
+        self.assertIn("ひなた@LOV-001".encode("utf-8"), work_html)   # 文件名自动派生
         self.assertIn(b"filename-text", work_html)                  # 超长省略容器
         self.assertNotIn(b"heart-btn js-heart", self.client.get("/").data)        # 仪表盘纯展示
         self.assertNotIn(b"heart-btn js-heart", self.client.get("/favorites").data)  # 心动向纯展示
@@ -202,7 +202,7 @@ class WebTests(unittest.TestCase):
             conn.close()
         self.client.post(f"/credits/{cid}/delete", data={"work_id": str(wid)})
         work_html = self.client.get(f"/works/{wid}").data
-        self.assertNotIn("LOV-001@ひなた".encode("utf-8"), work_html)
+        self.assertNotIn("ひなた@LOV-001".encode("utf-8"), work_html)
         self.assertIn(b"data-copy", work_html)
 
     def test_works_tag_collapse_markup(self):
@@ -438,7 +438,7 @@ class WebTests(unittest.TestCase):
         self.assertIn("今日评审", html)
         self.assertIn("LOV-001", html)
         self.assertIn("LOV-002", html)
-        self.assertIn('data-copy="LOV-001@ひなた"', html)   # 文件名复制按钮
+        self.assertIn('data-copy="ひなた@LOV-001"', html)   # 文件名复制按钮
         self.assertIn('data-copy="LOV-002"', html)
         # 每个条目带 √/× 快捷判定按钮,且均要求二次确认(js-confirm + data-msg)
         self.assertEqual(html.count(">√<"), 2)   # VR/非VR 条目各一个

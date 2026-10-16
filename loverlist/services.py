@@ -459,7 +459,7 @@ def judged_works(conn: sqlite3.Connection) -> list:
 
 
 # ---------------------------------------------------------------------------
-# 文件名自动派生:番号@出演演员1&出演演员2&…(幕后职务不计;无出演时仅番号)
+# 文件名自动派生:出演演员1&出演演员2&…@番号(幕后职务不计;无出演时仅番号)
 # ---------------------------------------------------------------------------
 def build_filename(conn, work_id):
     w = get_work(conn, work_id)
@@ -473,7 +473,7 @@ def build_filename(conn, work_id):
         " ORDER BY c.id ASC",
         (work_id, *CAST_ROLES),
     ).fetchall()]
-    return "@".join([w["code"]] + (["&".join(names)] if names else []))
+    return "@".join((["&".join(names)] if names else []) + [w["code"]])
 
 
 def refresh_filename(conn, work_id):
